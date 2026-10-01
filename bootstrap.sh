@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
 # Install dise-bot from GitHub on Ubuntu or Debian.
-# Run as a regular user: bash <(curl -fsSL https://raw.githubusercontent.com/mojtaba-glx/dise-bot/main/bootstrap.sh)
+# Run from a regular-user or root shell.
 set -euo pipefail
 
 REPOSITORY=https://github.com/mojtaba-glx/dise-bot.git
 INSTALL_DIR=${DISE_BOT_DIR:-"$HOME/dise-bot"}
-
-if (( EUID == 0 )); then
-    echo "Run this installer as your regular user, without sudo. It will request sudo only for system packages."
-    exit 1
-fi
 
 if [[ ! -f /etc/os-release ]]; then
     echo "Only Ubuntu and Debian are supported by the automatic prerequisite installer."
@@ -23,6 +18,10 @@ case "$ID" in
 esac
 
 as_root() {
+    if (( EUID == 0 )); then
+        "$@"
+        return
+    fi
     if ! command -v sudo >/dev/null 2>&1; then
         echo "sudo is required to install system packages."
         exit 1

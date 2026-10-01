@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.1.0**
+**Version 1.1.1**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -29,7 +29,8 @@ Help text uses regular English for readability.
 
 ## One-command server installation
 
-On Ubuntu or Debian, run this command as your regular user from any directory:
+On Ubuntu or Debian, run this command from any directory, using your regular
+user or a root shell:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/mojtaba-glx/dise-bot/main/bootstrap.sh)
@@ -38,7 +39,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/mojtaba-glx/dise-bot/main/bo
 The script installs Git, Docker Engine, and the Docker Compose plugin if needed,
 clones the repository to `~/dise-bot`, then privately prompts for the BotFather
 token and optionally your numeric Telegram owner ID. It asks for your sudo
-password only when system packages need installation. Run the same command to
+password only when system packages need installation as a regular user. A root
+shell installs into `/root/dise-bot` without sudo. Run the same command to
 update an existing clean checkout. The bot's `.env` and saved data are retained;
 the token is requested only on first setup. `curl` is needed to fetch the script.
 To use another location, set `DISE_BOT_DIR` before the command.
