@@ -49,11 +49,9 @@ BOT_BUTTONS = {
 }
 
 
-ADMIN_BUTTON_LABELS = {
-    label
-    for language in admin_i18n.SUPPORTED_LANGUAGES
-    for label in admin_i18n.BUTTONS[language].values()
-} | set(admin_i18n.LANGUAGE_BUTTONS.values())
+ADMIN_BUTTON_LABELS = set(admin_i18n.BUTTON_ACTIONS) | set(
+    admin_i18n.LANGUAGE_BUTTONS.values()
+)
 
 
 def join_store(context: ContextTypes.DEFAULT_TYPE) -> ForceJoinStore:
