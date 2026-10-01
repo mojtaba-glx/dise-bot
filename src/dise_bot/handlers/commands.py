@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes
 
 from dise_bot import __version__, messages
@@ -7,7 +7,19 @@ from dise_bot.keyboards import ablity_keyboard, dice_keyboard
 from dise_bot.services.activation import ActivationStore, is_group
 
 
+def group_user_enabled(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not is_group(update):
+        return True
+    chat, user = update.effective_chat, update.effective_user
+    if chat is None or user is None or user.is_bot:
+        return False
+    store: ActivationStore = context.application.bot_data["activation_store"]
+    return store.is_enabled(chat.id, user.id)
+
+
 def main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if is_group(update) and not group_user_enabled(update, context):
+        return ReplyKeyboardRemove(selective=True)
     user = update.effective_user
     return dice_keyboard(
         group_controls=is_group(update),
@@ -18,13 +30,9 @@ def main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def activation_status_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     if not is_group(update):
         return messages.PRIVATE_STATUS_MESSAGE
-    chat, user = update.effective_chat, update.effective_user
-    if chat is None or user is None or user.is_bot:
-        return messages.STATUS_OFF_MESSAGE
-    store: ActivationStore = context.application.bot_data["activation_store"]
     return (
         messages.STATUS_ON_MESSAGE
-        if store.is_enabled(chat.id, user.id)
+        if group_user_enabled(update, context)
         else messages.STATUS_OFF_MESSAGE
     )
 
@@ -38,13 +46,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text(
             text,
             reply_markup=main_keyboard(update, context),
+            do_quote=is_group(update),
         )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_message:
         await update.effective_message.reply_text(
-            messages.HELP, reply_markup=main_keyboard(update, context)
+            messages.HELP,
+            reply_markup=main_keyboard(update, context),
+            do_quote=is_group(update),
         )
 
 
@@ -53,6 +64,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.effective_message.reply_text(
             activation_status_text(update, context),
             reply_markup=main_keyboard(update, context),
+            do_quote=is_group(update),
         )
 
 
@@ -63,9 +75,17 @@ async def version_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def show_ablity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_message:
+        if is_group(update) and not group_user_enabled(update, context):
+            await update.effective_message.reply_text(
+                messages.PANEL_OFF_MESSAGE,
+                reply_markup=ReplyKeyboardRemove(selective=True),
+                do_quote=True,
+            )
+            return
         await update.effective_message.reply_text(
             messages.ABLITY_MENU,
             reply_markup=ablity_keyboard(group_controls=is_group(update)),
+            do_quote=is_group(update),
         )
 
 
