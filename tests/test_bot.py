@@ -703,11 +703,14 @@ async def test_command_menu_is_english(bot_app):
         "defense",
         "on",
         "off",
+        "status",
+        "version",
         "help",
         "id",
         "panel",
         "reply",
         "join",
+        "tag",
     ]
     assert all(command["description"].isascii() for command in commands)
 
@@ -791,6 +794,52 @@ async def test_group_persian_auto_reply_is_exact_and_group_scoped(bot_app, tmp_p
     assert reloaded.response_for(-100123, "سلام") == "درود!"
     await app.process_update(incoming(app, "/reply remove سلام", user_id=1, **group))
     assert app.bot_data["management_store"].response_for(-100123, "سلام") is None
+
+
+async def test_tag_replies_to_selected_message_with_known_member_id_mentions(bot_app):
+    app, api = bot_app
+    group = {"chat_type": "group", "chat_id": -100123}
+
+    await app.process_update(incoming(app, "hello", user_id=11, **group))
+    await app.process_update(incoming(app, "hi", user_id=12, **group))
+    before = len(api.sent)
+
+    await app.process_update(
+        incoming(app, "/tag", user_id=1, reply_to_user=11, **group)
+    )
+    assert len(api.sent) == before + 1
+    tagged = api.sent[-1]
+    assert tagged["parse_mode"] == "HTML"
+    assert "tg://user?id=1" in tagged["text"]
+    assert "tg://user?id=11" in tagged["text"]
+    assert "tg://user?id=12" in tagged["text"]
+    assert tagged["reply_parameters"]["message_id"] == 999
+
+
+async def test_tag_requires_reply_and_manager_permission(bot_app):
+    app, api = bot_app
+    group = {"chat_type": "group", "chat_id": -100123}
+
+    await app.process_update(incoming(app, "/tag", user_id=1, **group))
+    assert api.sent[-1]["text"] == "Reply to a message, then send /tag."
+
+    before = len(api.sent)
+    await app.process_update(
+        incoming(app, "/tag", user_id=42, reply_to_user=1, **group)
+    )
+    assert len(api.sent) == before
+
+
+def test_known_group_members_persist_and_can_be_deactivated(tmp_path):
+    path = tmp_path / "state.sqlite3"
+    store = ManagementStore(path, owner_user_id=1)
+    store.remember_group_member(-100123, 11, "Member Eleven")
+    assert store.group_members(-100123) == [(11, "Member Eleven")]
+
+    reloaded = ManagementStore(path, owner_user_id=1)
+    assert reloaded.group_members(-100123) == [(11, "Member Eleven")]
+    reloaded.remember_group_member(-100123, 11, "Member Eleven", active=False)
+    assert reloaded.group_members(-100123) == []
 
 
 async def test_admin_can_manage_group_replies_but_not_roles(bot_app):
