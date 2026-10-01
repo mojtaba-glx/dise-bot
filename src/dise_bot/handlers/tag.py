@@ -80,11 +80,25 @@ async def fetch_all_members_mtproto(
         return None
 
     try:
-        from telethon import TelegramClient
+        from telethon import TelegramClient, functions, types, utils
         from telethon.sessions import MemorySession
     except ImportError:
         logger.error("Telethon is not installed; full /tag sync is unavailable.")
         return None
+
+    def member_tuple(member) -> tuple[int, str] | None:
+        if getattr(member, "bot", False) or getattr(member, "deleted", False):
+            return None
+        name = " ".join(
+            part
+            for part in (
+                getattr(member, "first_name", None),
+                getattr(member, "last_name", None),
+            )
+            if part
+        ).strip()
+        name = name or getattr(member, "username", None) or str(member.id)
+        return member.id, name
 
     client = TelegramClient(
         MemorySession(),
@@ -93,27 +107,48 @@ async def fetch_all_members_mtproto(
     )
     try:
         await client.start(bot_token=settings.token)
-        dialogs = await client.get_dialogs()
-        entity = next((dialog.entity for dialog in dialogs if dialog.id == chat_id), None)
-        if entity is None:
-            raise RuntimeError("The bot could not resolve this group over MTProto.")
+        real_id, peer_type = utils.resolve_id(chat_id)
+        found: dict[int, str] = {}
 
-        members: list[tuple[int, str]] = []
-        async for member in client.iter_participants(entity):
-            if getattr(member, "bot", False) or getattr(member, "deleted", False):
-                continue
-            name = " ".join(
-                part
-                for part in (
-                    getattr(member, "first_name", None),
-                    getattr(member, "last_name", None),
+        if peer_type is types.PeerChannel:
+            channel = types.InputChannel(real_id, 0)
+            offset = 0
+            limit = 200
+            while True:
+                result = await client(
+                    functions.channels.GetParticipantsRequest(
+                        channel=channel,
+                        filter=types.ChannelParticipantsRecent(),
+                        offset=offset,
+                        limit=limit,
+                        hash=0,
+                    )
                 )
-                if part
-            ).strip()
-            name = name or getattr(member, "username", None) or str(member.id)
-            members.append((member.id, name))
-        members.sort(key=lambda item: item[0])
-        return members
+                for member in result.users:
+                    item = member_tuple(member)
+                    if item is not None:
+                        found[item[0]] = item[1]
+                received = len(result.participants)
+                offset += received
+                if received == 0 or offset >= result.count:
+                    break
+
+        elif peer_type is types.PeerChat:
+            result = await client(functions.messages.GetFullChatRequest(chat_id=real_id))
+            users = {user.id: user for user in result.users}
+            participants = getattr(result.full_chat, "participants", None)
+            participant_rows = getattr(participants, "participants", [])
+            for participant in participant_rows:
+                member = users.get(participant.user_id)
+                if member is None:
+                    continue
+                item = member_tuple(member)
+                if item is not None:
+                    found[item[0]] = item[1]
+        else:
+            raise RuntimeError("Unsupported Telegram chat type for full member sync.")
+
+        return sorted(found.items())
     except Exception as error:
         logger.warning("Full MTProto member sync failed (%s).", type(error).__name__)
         raise RuntimeError("Could not load the full member list from Telegram.") from None
