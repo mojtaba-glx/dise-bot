@@ -1,7 +1,7 @@
 """Group-only commands that affect only the sending user's dice."""
 
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 from dise_bot import messages
 from dise_bot.keyboards import dice_keyboard
@@ -36,3 +36,23 @@ async def on_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 async def off_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _set_activation(update, context, enabled=False)
+
+
+async def activation_button_gate(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Handle the persistent ON/OFF buttons before normal message routing."""
+    message = update.effective_message
+    if message is None or not is_group(update) or not message.text:
+        return
+
+    text = " ".join(message.text.split()).casefold()
+    if text == messages.ON_BUTTON.casefold():
+        await _set_activation(update, context, enabled=True)
+    elif text == messages.OFF_BUTTON.casefold():
+        await _set_activation(update, context, enabled=False)
+    else:
+        return
+
+    # Do not let the same keyboard click fall through to later text handlers.
+    raise ApplicationHandlerStop
