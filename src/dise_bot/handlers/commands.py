@@ -21,9 +21,13 @@ def main_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_group(update) and not group_user_enabled(update, context):
         return ReplyKeyboardRemove(selective=True)
     user = update.effective_user
+    store = manager_store(context)
+    manager = bool(user and store.is_manager(user.id))
+    language = store.language_for(user.id) if user and manager else "en"
     return dice_keyboard(
         group_controls=is_group(update),
-        manager=bool(user and manager_store(context).is_manager(user.id)),
+        manager=manager,
+        manager_language=language,
     )
 
 
