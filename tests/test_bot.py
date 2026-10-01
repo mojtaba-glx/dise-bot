@@ -1104,6 +1104,14 @@ async def test_force_join_panel_buttons_and_per_admin_language(bot_app, tmp_path
     )
     assert app.bot_data["force_join_store"].enabled
 
+    await app.process_update(incoming(app, "/start", user_id=12))
+    assert "Join all required channels" in api.sent[-1]["text"]
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "force_join"), user_id=12)
+    )
+    assert "عضویت اجباری" in api.sent[-1]["text"]
+
     await app.process_update(
         incoming(app, admin_i18n.button("fa", "join_off"), user_id=12)
     )
