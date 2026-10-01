@@ -465,6 +465,15 @@ async def join_panel_button(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
     language = management.language_for(user.id)
     action = button_action(message.text or "")
+    if action in {
+        "force_join",
+        "join_on",
+        "join_off",
+        "join_add",
+        "join_remove",
+        "join_list",
+    }:
+        context.user_data.pop("pending_panel_action", None)
 
     if action == "force_join":
         context.user_data.pop("pending_force_join_action", None)
