@@ -59,6 +59,7 @@ from dise_bot.handlers.management import (
     unban_command,
 )
 from dise_bot.handlers.reflect import reflect_button
+from dise_bot.handlers.tag import remember_group_members, tag_command
 from dise_bot.logging_config import configure_logging
 from dise_bot.messages import (
     ABLITY_BUTTON,
@@ -101,6 +102,7 @@ async def set_commands(application: Application) -> None:
                 BotCommand("panel", "Open the bot management panel"),
                 BotCommand("reply", "Manage group auto replies"),
                 BotCommand("join", "Manage required channel membership"),
+                BotCommand("tag", "Mention known members on a replied message"),
             ]
         )
     except TelegramError as error:
@@ -125,6 +127,7 @@ def build_application(settings: Settings) -> Application:
     )
     application.bot_data["force_join_store"] = ForceJoinStore(settings.state_db_path)
     application.bot_data["membership_cache"] = {}
+    application.add_handler(TypeHandler(Update, remember_group_members), group=-3)
     application.add_handler(TypeHandler(Update, ban_gate), group=-2)
     application.add_handler(TypeHandler(Update, force_join_gate), group=-1)
     application.add_handler(CallbackQueryHandler(check_membership, pattern=CHECK_CALLBACK))
@@ -152,6 +155,7 @@ def build_application(settings: Settings) -> Application:
     application.add_handler(CommandHandler("unadmin", unadmin_command))
     application.add_handler(CommandHandler("reply", reply_command))
     application.add_handler(CommandHandler("join", join_command))
+    application.add_handler(CommandHandler("tag", tag_command))
     panel_labels = (
         PANEL_BUTTON,
         BAN_BUTTON,
@@ -233,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("Starting dise bot with concurrent updates and no per-user cooldown.")
     try:
         application.run_polling(
-            allowed_updates=[Update.MESSAGE, Update.CALLBACK_QUERY],
+            allowed_updates=[Update.MESSAGE, Update.CALLBACK_QUERY, Update.CHAT_MEMBER],
             drop_pending_updates=True,
             bootstrap_retries=3,
             timeout=30,
