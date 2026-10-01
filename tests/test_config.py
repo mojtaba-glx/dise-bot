@@ -10,7 +10,15 @@ TOKEN = "123456789:TEST_TOKEN_FOR_OFFLINE_TESTS_ONLY"
 
 @pytest.fixture(autouse=True)
 def clean_environment(monkeypatch):
-    for name in ("BOT_TOKEN", "COOLDOWN_SECONDS", "LOG_LEVEL", "STATE_DB_PATH", "OWNER_USER_ID", "TELEGRAM_API_ID", "TELEGRAM_API_HASH"):
+    for name in (
+        "BOT_TOKEN",
+        "COOLDOWN_SECONDS",
+        "LOG_LEVEL",
+        "STATE_DB_PATH",
+        "OWNER_USER_ID",
+        "TELEGRAM_API_ID",
+        "TELEGRAM_API_HASH",
+    ):
         monkeypatch.delenv(name, raising=False)
 
 
