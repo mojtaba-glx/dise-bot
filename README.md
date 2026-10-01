@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.1.7**
+**Version 1.1.8**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -164,8 +164,9 @@ uv run dise-bot
 ### Group tag command
 
 Reply to a message in a group and send `/tag`. Only the configured owner and bot admins can use it.
-The bot replies to the selected message with ID-based mentions using `tg://user?id=...`, so a username
-is not required. Large member lists are split into batches of 30 mentions.
+The bot replies to the selected message using Telegram `text_mention` entities tied directly to each
+numeric user ID, so a username is not required. Members are tagged three at a time; between each
+three-member batch the bot sends a separate continuation message and briefly pauses before continuing.
 
 Telegram's Bot API does not provide a method to enumerate every existing group member. The bot therefore
 keeps a persistent registry of members it has observed in group messages and future membership changes.
