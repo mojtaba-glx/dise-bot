@@ -796,24 +796,41 @@ async def test_group_persian_auto_reply_is_exact_and_group_scoped(bot_app, tmp_p
     assert app.bot_data["management_store"].response_for(-100123, "سلام") is None
 
 
-async def test_tag_replies_to_selected_message_with_known_member_id_mentions(bot_app):
+async def test_tag_uses_real_id_mentions_in_batches_of_three_with_separator_messages(bot_app):
     app, api = bot_app
     group = {"chat_type": "group", "chat_id": -100123}
 
-    await app.process_update(incoming(app, "hello", user_id=11, **group))
-    await app.process_update(incoming(app, "hi", user_id=12, **group))
+    for user_id in (11, 12, 13, 14, 15, 16):
+        await app.process_update(incoming(app, "hello", user_id=user_id, **group))
     before = len(api.sent)
 
-    await app.process_update(
-        incoming(app, "/tag", user_id=1, reply_to_user=11, **group)
+    with patch("dise_bot.handlers.tag.asyncio.sleep") as sleep:
+        await app.process_update(
+            incoming(app, "/tag", user_id=1, reply_to_user=11, **group)
+        )
+
+    sent = api.sent[before:]
+    assert len(sent) == 5
+    assert [item["text"] for item in sent[1::2]] == [
+        "⏳ ادامه تگ اعضا...",
+        "⏳ ادامه تگ اعضا...",
+    ]
+
+    tag_messages = sent[0::2]
+    assert [len(item["entities"]) for item in tag_messages] == [3, 3, 1]
+    mentioned_ids = [
+        entity["user"]["id"]
+        for item in tag_messages
+        for entity in item["entities"]
+    ]
+    assert mentioned_ids == [1, 11, 12, 13, 14, 15, 16]
+    assert all(
+        entity["type"] == "text_mention"
+        for item in tag_messages
+        for entity in item["entities"]
     )
-    assert len(api.sent) == before + 1
-    tagged = api.sent[-1]
-    assert tagged["parse_mode"] == "HTML"
-    assert "tg://user?id=1" in tagged["text"]
-    assert "tg://user?id=11" in tagged["text"]
-    assert "tg://user?id=12" in tagged["text"]
-    assert tagged["reply_parameters"]["message_id"] == 999
+    assert all(item["reply_parameters"]["message_id"] == 999 for item in sent)
+    assert sleep.await_count == 4
 
 
 async def test_tag_requires_reply_and_manager_permission(bot_app):
