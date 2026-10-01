@@ -1,4 +1,4 @@
-"""Persist the optional chat that users must join before using the bot."""
+"""Persist multiple chats required for using the bot."""
 
 import sqlite3
 from contextlib import closing
@@ -19,6 +19,7 @@ class ForceJoinStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(path, timeout=5)) as connection:
             with connection:
+                # Legacy single-channel table is kept for backward-compatible migration.
                 connection.execute(
                     "CREATE TABLE IF NOT EXISTS force_join ("
                     "singleton INTEGER PRIMARY KEY CHECK (singleton = 1), "
@@ -30,36 +31,111 @@ class ForceJoinStore:
                     connection.execute(
                         "ALTER TABLE force_join ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1"
                     )
-            row = connection.execute(
-                "SELECT chat_id, title, join_url, enabled FROM force_join WHERE singleton = 1"
+
+                connection.execute(
+                    "CREATE TABLE IF NOT EXISTS force_join_channels ("
+                    "chat_id INTEGER PRIMARY KEY, title TEXT NOT NULL, join_url TEXT NOT NULL)"
+                )
+                connection.execute(
+                    "CREATE TABLE IF NOT EXISTS force_join_settings ("
+                    "singleton INTEGER PRIMARY KEY CHECK (singleton = 1), "
+                    "enabled INTEGER NOT NULL DEFAULT 0)"
+                )
+
+                legacy = connection.execute(
+                    "SELECT chat_id, title, join_url, enabled "
+                    "FROM force_join WHERE singleton = 1"
+                ).fetchone()
+                if legacy is not None:
+                    connection.execute(
+                        "INSERT OR IGNORE INTO force_join_channels "
+                        "(chat_id, title, join_url) VALUES (?, ?, ?)",
+                        legacy[:3],
+                    )
+                    connection.execute(
+                        "INSERT OR IGNORE INTO force_join_settings (singleton, enabled) "
+                        "VALUES (1, ?)",
+                        (legacy[3],),
+                    )
+                else:
+                    connection.execute(
+                        "INSERT OR IGNORE INTO force_join_settings (singleton, enabled) "
+                        "VALUES (1, 0)"
+                    )
+
+            rows = connection.execute(
+                "SELECT chat_id, title, join_url FROM force_join_channels ORDER BY chat_id"
+            ).fetchall()
+            setting = connection.execute(
+                "SELECT enabled FROM force_join_settings WHERE singleton = 1"
             ).fetchone()
-        self.configured_chat = RequiredChat(*row[:3]) if row else None
-        self.enabled = bool(row[3]) if row else False
+
+        self.configured_chats = [RequiredChat(*row) for row in rows]
+        self.enabled = bool(setting[0]) if setting else False
+
+    @property
+    def required_chats(self) -> list[RequiredChat]:
+        return list(self.configured_chats) if self.enabled else []
+
+    # Backward-compatible accessors used by older callers/tests.
+    @property
+    def configured_chat(self) -> RequiredChat | None:
+        return self.configured_chats[0] if self.configured_chats else None
 
     @property
     def required_chat(self) -> RequiredChat | None:
-        return self.configured_chat if self.enabled else None
+        chats = self.required_chats
+        return chats[0] if chats else None
 
-    def set_required_chat(self, chat: RequiredChat) -> None:
+    def add_chat(self, chat: RequiredChat, *, enable: bool = True) -> None:
         with closing(sqlite3.connect(self._path, timeout=5)) as connection, connection:
             connection.execute(
-                "INSERT INTO force_join (singleton, chat_id, title, join_url, enabled) "
-                "VALUES (1, ?, ?, ?, 1) ON CONFLICT(singleton) DO UPDATE SET "
-                "chat_id = excluded.chat_id, title = excluded.title, "
-                "join_url = excluded.join_url, enabled = 1",
+                "INSERT INTO force_join_channels (chat_id, title, join_url) "
+                "VALUES (?, ?, ?) ON CONFLICT(chat_id) DO UPDATE SET "
+                "title = excluded.title, join_url = excluded.join_url",
                 (chat.chat_id, chat.title, chat.join_url),
             )
-        self.configured_chat = chat
-        self.enabled = True
+            if enable:
+                connection.execute(
+                    "UPDATE force_join_settings SET enabled = 1 WHERE singleton = 1"
+                )
+        by_id = {item.chat_id: item for item in self.configured_chats}
+        by_id[chat.chat_id] = chat
+        self.configured_chats = sorted(by_id.values(), key=lambda item: item.chat_id)
+        if enable:
+            self.enabled = True
+
+    def set_required_chat(self, chat: RequiredChat) -> None:
+        self.add_chat(chat, enable=True)
+
+    def update_chat(self, chat: RequiredChat) -> None:
+        self.add_chat(chat, enable=False)
+
+    def remove_chat(self, chat_id: int) -> bool:
+        exists = any(item.chat_id == chat_id for item in self.configured_chats)
+        if not exists:
+            return False
+        with closing(sqlite3.connect(self._path, timeout=5)) as connection, connection:
+            connection.execute("DELETE FROM force_join_channels WHERE chat_id = ?", (chat_id,))
+        self.configured_chats = [
+            item for item in self.configured_chats if item.chat_id != chat_id
+        ]
+        if not self.configured_chats:
+            self.disable()
+        return True
 
     def enable(self) -> None:
-        if self.configured_chat is None:
-            raise ValueError("Set a channel before enabling required membership.")
+        if not self.configured_chats:
+            raise ValueError("Set at least one channel before enabling required membership.")
         with closing(sqlite3.connect(self._path, timeout=5)) as connection, connection:
-            connection.execute("UPDATE force_join SET enabled = 1 WHERE singleton = 1")
+            connection.execute(
+                "UPDATE force_join_settings SET enabled = 1 WHERE singleton = 1"
+            )
         self.enabled = True
 
     def disable(self) -> None:
         with closing(sqlite3.connect(self._path, timeout=5)) as connection, connection:
-            connection.execute("UPDATE force_join SET enabled = 0 WHERE singleton = 1")
+            connection.execute(
+                "UPDATE force_join_settings SET enabled = 0 WHERE singleton = 1"
+            )
         self.enabled = False
