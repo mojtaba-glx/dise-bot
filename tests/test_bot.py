@@ -636,7 +636,9 @@ async def test_one_members_off_does_not_change_another_members_activation(bot_ap
 
     before = len(api.sent)
     with patch("dise_bot.handlers.dice.roll", return_value=9):
-        await app.process_update(incoming(app, messages.GREEN_BUTTON, user_id=62, chat_type="group"))
+        await app.process_update(
+            incoming(app, messages.GREEN_BUTTON, user_id=62, chat_type="group")
+        )
     assert len(api.sent) == before + 1
     assert api.sent[-1]["text"] == "+9"
     assert api.sent[-1]["reply_markup"]["selective"] is True
