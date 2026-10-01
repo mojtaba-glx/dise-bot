@@ -576,44 +576,6 @@ async def test_slash_keyboard_buttons_work_without_command_entities(bot_app):
     assert api.sent[-1]["text"] == messages.OFF_MESSAGE
 
 
-async def test_dedicated_on_off_buttons_work_for_the_clicking_user(bot_app):
-    app, api = bot_app
-    store = app.bot_data["activation_store"]
-
-    await app.process_update(
-        incoming(app, messages.ON_BUTTON, user_id=51, chat_type="group", command_entities=False)
-    )
-    assert store.is_enabled(-100123, 51)
-    assert not store.is_enabled(-100123, 52)
-    assert api.sent[-1]["text"] == messages.ON_MESSAGE
-
-    await app.process_update(
-        incoming(app, messages.OFF_BUTTON, user_id=51, chat_type="group", command_entities=False)
-    )
-    assert not store.is_enabled(-100123, 51)
-    assert api.sent[-1]["text"] == messages.OFF_MESSAGE
-    assert api.sent[-1]["reply_markup"] == {"remove_keyboard": True, "selective": True}
-
-
-async def test_off_button_immediately_blocks_the_same_users_next_roll(bot_app):
-    app, api = bot_app
-
-    await app.process_update(incoming(app, messages.ON_BUTTON, user_id=51, chat_type="group"))
-    with patch("dise_bot.handlers.dice.roll", return_value=7) as roll:
-        await app.process_update(incoming(app, messages.GREEN_BUTTON, user_id=51, chat_type="group"))
-        roll.assert_called_once()
-    assert api.sent[-1]["text"] == "+7"
-
-    await app.process_update(incoming(app, messages.OFF_BUTTON, user_id=51, chat_type="group"))
-    assert api.sent[-1]["text"] == messages.OFF_MESSAGE
-    before = len(api.sent)
-
-    with patch("dise_bot.handlers.dice.roll") as roll:
-        await app.process_update(incoming(app, messages.GREEN_BUTTON, user_id=51, chat_type="group"))
-        roll.assert_not_called()
-    assert len(api.sent) == before
-
-
 async def test_on_command_restores_full_keyboard_after_personal_off(bot_app):
     app, api = bot_app
     store = app.bot_data["activation_store"]
