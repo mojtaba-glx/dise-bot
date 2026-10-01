@@ -1,25 +1,37 @@
-"""Track known group members and mention them from a replied /tag command."""
+"""Fetch all current group members over MTProto and mention them from /tag."""
 
 import asyncio
+import logging
 
 from telegram import Chat, MessageEntity, Update, User
 from telegram.constants import ChatMemberStatus
 from telegram.ext import ContextTypes
 
+from dise_bot.config import Settings
 from dise_bot.services.management import ManagementStore
 
 MENTIONS_PER_MESSAGE = 3
 SEND_DELAY_SECONDS = 1.0
 SEPARATOR_TEXT = "⏳ ادامه تگ اعضا..."
+MTProto_SETUP_MESSAGE = (
+    "Full /tag sync needs TELEGRAM_API_ID and TELEGRAM_API_HASH in .env. "
+    "Get them from my.telegram.org, add both values, then restart the bot."
+)
 ACTIVE_STATUSES = {
     ChatMemberStatus.OWNER,
     ChatMemberStatus.ADMINISTRATOR,
     ChatMemberStatus.MEMBER,
 }
 
+logger = logging.getLogger(__name__)
+
 
 def member_store(context: ContextTypes.DEFAULT_TYPE) -> ManagementStore:
     return context.application.bot_data["management_store"]
+
+
+def bot_settings(context: ContextTypes.DEFAULT_TYPE) -> Settings:
+    return context.application.bot_data["settings"]
 
 
 def _display_name(user) -> str:
@@ -34,7 +46,7 @@ def _remember_user(store: ManagementStore, chat_id: int, user, *, active: bool =
 
 
 async def remember_group_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Remember members the bot sees and maintain join/leave state for future /tag calls."""
+    """Keep the local registry useful between full MTProto syncs."""
     chat = update.effective_chat
     if chat is None or chat.type not in (Chat.GROUP, Chat.SUPERGROUP):
         return
@@ -57,6 +69,52 @@ async def remember_group_members(update: Update, context: ContextTypes.DEFAULT_T
             member.status == ChatMemberStatus.RESTRICTED and getattr(member, "is_member", False)
         )
         _remember_user(store, chat.id, member.user, active=active)
+
+
+async def fetch_all_members_mtproto(
+    context: ContextTypes.DEFAULT_TYPE, chat_id: int
+) -> list[tuple[int, str]] | None:
+    """Return every current non-bot member, or None when MTProto is not configured."""
+    settings = bot_settings(context)
+    if settings.telegram_api_id is None or settings.telegram_api_hash is None:
+        return None
+
+    try:
+        from telethon import TelegramClient
+        from telethon.sessions import MemorySession
+    except ImportError:
+        logger.error("Telethon is not installed; full /tag sync is unavailable.")
+        return None
+
+    client = TelegramClient(
+        MemorySession(),
+        settings.telegram_api_id,
+        settings.telegram_api_hash,
+    )
+    try:
+        await client.start(bot_token=settings.token)
+        dialogs = await client.get_dialogs()
+        entity = next((dialog.entity for dialog in dialogs if dialog.id == chat_id), None)
+        if entity is None:
+            raise RuntimeError("The bot could not resolve this group over MTProto.")
+
+        members: list[tuple[int, str]] = []
+        async for member in client.iter_participants(entity):
+            if getattr(member, "bot", False) or getattr(member, "deleted", False):
+                continue
+            name = " ".join(
+                part for part in (getattr(member, "first_name", None), getattr(member, "last_name", None))
+                if part
+            ).strip()
+            name = name or getattr(member, "username", None) or str(member.id)
+            members.append((member.id, name))
+        members.sort(key=lambda item: item[0])
+        return members
+    except Exception as error:
+        logger.warning("Full MTProto member sync failed (%s).", type(error).__name__)
+        raise RuntimeError("Could not load the full member list from Telegram.") from None
+    finally:
+        await client.disconnect()
 
 
 def _mention_payload(batch: list[tuple[int, str]]) -> tuple[str, list[MessageEntity]]:
@@ -105,25 +163,29 @@ async def tag_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await message.reply_text("Reply to a message, then send /tag.")
         return
 
-    members = store.group_members(chat.id)
+    try:
+        members = await fetch_all_members_mtproto(context, chat.id)
+    except RuntimeError as error:
+        await message.reply_text(str(error))
+        return
+    if members is None:
+        await message.reply_text(MTProto_SETUP_MESSAGE)
+        return
     if not members:
-        await message.reply_text("No known group members are available to tag yet.")
+        await message.reply_text("Telegram returned no current group members to tag.")
         return
 
+    for user_id, display_name in members:
+        store.remember_group_member(chat.id, user_id, display_name, active=True)
+
     target = message.reply_to_message
-    total = len(members)
     batches = [
         members[offset : offset + MENTIONS_PER_MESSAGE]
-        for offset in range(0, total, MENTIONS_PER_MESSAGE)
+        for offset in range(0, len(members), MENTIONS_PER_MESSAGE)
     ]
-
     for index, batch in enumerate(batches):
         text, entities = _mention_payload(batch)
-        await target.reply_text(
-            text,
-            entities=entities,
-            do_quote=True,
-        )
+        await target.reply_text(text, entities=entities, do_quote=True)
 
         if index < len(batches) - 1:
             await asyncio.sleep(SEND_DELAY_SECONDS)
