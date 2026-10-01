@@ -615,6 +615,27 @@ async def test_off_button_immediately_blocks_the_same_users_next_roll(bot_app):
     assert len(api.sent) == before
 
 
+async def test_on_command_restores_full_keyboard_after_personal_off(bot_app):
+    app, api = bot_app
+    store = app.bot_data["activation_store"]
+
+    await app.process_update(incoming(app, "/on", user_id=71, chat_type="group"))
+    await app.process_update(incoming(app, messages.OFF_BUTTON, user_id=71, chat_type="group"))
+    assert not store.is_enabled(-100123, 71)
+    assert api.sent[-1]["reply_markup"] == {"remove_keyboard": True, "selective": True}
+
+    await app.process_update(incoming(app, "/on", user_id=71, chat_type="group"))
+    assert store.is_enabled(-100123, 71)
+    assert api.sent[-1]["text"] == messages.ON_MESSAGE
+    markup = api.sent[-1]["reply_markup"]
+    assert markup["selective"] is True
+    assert markup["keyboard"][-1] == [
+        {"text": messages.ON_BUTTON},
+        {"text": messages.OFF_BUTTON},
+        {"text": messages.STATUS_BUTTON},
+    ]
+
+
 async def test_status_button_and_command_show_only_the_clicking_users_state(bot_app):
     app, api = bot_app
 
