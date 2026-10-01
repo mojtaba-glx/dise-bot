@@ -74,7 +74,7 @@ async def remember_group_members(update: Update, context: ContextTypes.DEFAULT_T
 async def fetch_all_members_mtproto(
     context: ContextTypes.DEFAULT_TYPE, chat_id: int
 ) -> list[tuple[int, str]] | None:
-    """Return every current non-bot member, or None when MTProto is not configured."""
+    """Return every current member except this bot, or None when MTProto is not configured."""
     settings = bot_settings(context)
     if settings.telegram_api_id is None or settings.telegram_api_hash is None:
         return None
@@ -130,7 +130,7 @@ async def fetch_all_members_mtproto(
                     found[item[0]] = item[1]
                 received = len(result.participants)
                 offset += received
-                if received == 0:
+                if received == 0 or offset >= expected_total:
                     break
 
         elif peer_type is types.PeerChat:
@@ -158,6 +158,8 @@ async def fetch_all_members_mtproto(
             for user_id, name in found.items()
             if user_id != context.bot.id
         )
+    except RuntimeError:
+        raise
     except Exception as error:
         logger.warning("Full MTProto member sync failed (%s).", type(error).__name__)
         raise RuntimeError("Could not load the full member list from Telegram.") from None
