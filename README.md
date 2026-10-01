@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.1.8**
+**Version 1.1.9**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -137,7 +137,7 @@ uv run dise-bot
 | `/join set -100...` | Owner only: create a private channel invite link and require membership |
 | `/join on` / `/join off` | Owner only: toggle the saved membership requirement |
 | `/join status` | Owner only: show the saved channel and link |
-| `/tag` | Owner/admin: reply to a group message and mention known members by numeric Telegram ID |
+| `/tag` | Owner/admin: reply to a group message and mention every current member by numeric Telegram ID |
 
 - Both original dice button labels are unchanged, including spaces and emoji.
 - Results stay minimal: a sign and a number, such as `-3` or `+8`.
@@ -164,14 +164,24 @@ uv run dise-bot
 ### Group tag command
 
 Reply to a message in a group and send `/tag`. Only the configured owner and bot admins can use it.
-The bot replies to the selected message using Telegram `text_mention` entities tied directly to each
-numeric user ID, so a username is not required. Members are tagged three at a time; between each
-three-member batch the bot sends a separate continuation message and briefly pauses before continuing.
+Before tagging, the bot opens an MTProto connection with its own bot token and fetches the current
+participant list directly from Telegram. It then sends real `text_mention` entities tied to each
+numeric Telegram user ID, so usernames and online status are not required.
 
-Telegram's Bot API does not provide a method to enumerate every existing group member. The bot therefore
-keeps a persistent registry of members it has observed in group messages and future membership changes.
-Because the bot is an administrator, enabling `chat_member` updates lets it track future joins/leaves,
-but members who were already present and have never produced an observable update may not be known yet.
+Members are tagged three at a time. Between each three-member batch the bot sends a separate
+continuation message and pauses briefly before continuing. Bots and deleted accounts are skipped.
+
+Full member enumeration is not available through the ordinary Bot API. To enable the MTProto sync,
+create an API application at `my.telegram.org` and set both values below in `.env`:
+
+```env
+TELEGRAM_API_ID=123456
+TELEGRAM_API_HASH=0123456789abcdef0123456789abcdef
+```
+
+The bot itself must be an administrator in the target group. If these two values are missing or
+the full member list cannot be fetched, `/tag` stops with an error instead of tagging only the
+partial locally observed member list.
 
 ### Group activation
 
@@ -340,6 +350,8 @@ as an additional menu item or silently used as an energy cost.
 | `BOT_TOKEN` | Required | Your bot token |
 | `STATE_DB_PATH` | `data/activation.sqlite3` | SQLite file for switches, roles, bans, and replies |
 | `OWNER_USER_ID` | Empty | Numeric Telegram user ID with full management access |
+| `TELEGRAM_API_ID` | Empty | API ID from my.telegram.org; required for full `/tag` sync |
+| `TELEGRAM_API_HASH` | Empty | API hash from my.telegram.org; required for full `/tag` sync |
 | `LOG_LEVEL` | `INFO` | DEBUG, INFO, WARNING, ERROR, or CRITICAL |
 
 Environment variables override `.env`. By default, `.env` is read from the current
