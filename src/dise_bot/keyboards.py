@@ -71,8 +71,9 @@ def force_join_keyboard(*, language: str, enabled: bool) -> ReplyKeyboardMarkup:
         ],
         [
             admin_i18n.button(language, "join_add"),
-            admin_i18n.button(language, "join_list"),
+            admin_i18n.button(language, "join_remove"),
         ],
+        [admin_i18n.button(language, "join_list")],
         [admin_i18n.button(language, "back")],
     ]
     return ReplyKeyboardMarkup(rows, resize_keyboard=True, is_persistent=True)
