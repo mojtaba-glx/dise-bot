@@ -27,6 +27,7 @@ async def _roll(update: Update, context: ContextTypes.DEFAULT_TYPE, color: DiceC
             group_controls=is_group(update),
             manager=manager_store(context).is_manager(user.id),
         ),
+        do_quote=is_group(update),
     )
 
 
