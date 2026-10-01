@@ -21,7 +21,7 @@ from telegram.ext import (
 
 from dise_bot.config import ConfigurationError, Settings, load_settings
 from dise_bot.handlers.absolute import absolute_button
-from dise_bot.handlers.activation import activation_button_gate, off_command, on_command
+from dise_bot.handlers.activation import off_command, on_command
 from dise_bot.handlers.aura import aura_button
 from dise_bot.handlers.commands import (
     help_command,
@@ -75,7 +75,6 @@ from dise_bot.messages import (
     RED_BUTTON,
     REFLECT_BUTTON,
     REMOVE_ADMIN_BUTTON,
-    STATUS_BUTTON,
     UNBAN_BUTTON,
 )
 from dise_bot.services.activation import ActivationStore
@@ -126,9 +125,8 @@ def build_application(settings: Settings) -> Application:
     )
     application.bot_data["force_join_store"] = ForceJoinStore(settings.state_db_path)
     application.bot_data["membership_cache"] = {}
-    application.add_handler(TypeHandler(Update, ban_gate), group=-3)
-    application.add_handler(TypeHandler(Update, force_join_gate), group=-2)
-    application.add_handler(TypeHandler(Update, activation_button_gate), group=-1)
+    application.add_handler(TypeHandler(Update, ban_gate), group=-2)
+    application.add_handler(TypeHandler(Update, force_join_gate), group=-1)
     application.add_handler(CallbackQueryHandler(check_membership, pattern=CHECK_CALLBACK))
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
@@ -154,15 +152,6 @@ def build_application(settings: Settings) -> Application:
     application.add_handler(CommandHandler("unadmin", unadmin_command))
     application.add_handler(CommandHandler("reply", reply_command))
     application.add_handler(CommandHandler("join", join_command))
-    application.add_handler(
-        MessageHandler(
-            filters.ChatType.GROUPS
-            & filters.TEXT
-            & filters.Regex(rf"\A{re.escape(STATUS_BUTTON)}\Z"),
-            status_command,
-        )
-    )
-
     panel_labels = (
         PANEL_BUTTON,
         BAN_BUTTON,
