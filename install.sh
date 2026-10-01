@@ -39,13 +39,21 @@ if [ ! -e .env ]; then
     cat > .env <<EOF
 BOT_TOKEN=$bot_token
 OWNER_USER_ID=$owner_id
+TELEGRAM_API_ID=
+TELEGRAM_API_HASH=
 STATE_DB_PATH=data/activation.sqlite3
 LOG_LEVEL=INFO
 EOF
     unset bot_token owner_id
     echo "Created .env with private file permissions."
 else
-    echo "Using the existing .env without changing it."
+    echo "Using the existing .env without changing existing values."
+    if ! grep -q '^TELEGRAM_API_ID=' .env; then
+        printf '\nTELEGRAM_API_ID=\n' >> .env
+    fi
+    if ! grep -q '^TELEGRAM_API_HASH=' .env; then
+        printf 'TELEGRAM_API_HASH=\n' >> .env
+    fi
 fi
 
 "${docker_command[@]}" compose up --build -d
