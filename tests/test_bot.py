@@ -273,6 +273,7 @@ async def test_ablity_button_opens_screen_and_back_returns_to_main_menu(bot_app)
 
 async def test_ablity_screen_keeps_group_switches_available(bot_app):
     app, api = bot_app
+    await app.process_update(incoming(app, "/on", chat_type="group"))
     await app.process_update(incoming(app, messages.ABLITY_BUTTON, chat_type="group"))
     assert api.sent[-1]["text"] == messages.ABLITY_MENU
     assert api.sent[-1]["reply_markup"]["keyboard"][-1] == [
@@ -280,6 +281,7 @@ async def test_ablity_screen_keeps_group_switches_available(bot_app):
         {"text": messages.OFF_BUTTON},
         {"text": messages.STATUS_BUTTON},
     ]
+    assert api.sent[-1]["reply_markup"]["selective"] is True
 
 
 async def test_every_rapid_click_produces_its_own_result(bot_app):
@@ -524,14 +526,23 @@ async def test_on_and_off_change_only_one_user_in_one_group(bot_app):
     assert api.sent[-1]["text"].startswith("+")
 
 
-async def test_group_menus_explain_how_to_enable_dice(bot_app):
+async def test_group_menus_stay_hidden_until_that_member_turns_them_on(bot_app):
     app, api = bot_app
     await app.process_update(incoming(app, "/start", chat_type="group"))
     assert api.sent[-1]["text"].startswith(messages.GROUP_WELCOME)
-    assert "use /on" in api.sent[-1]["text"].lower()
+    assert "/on" in api.sent[-1]["text"]
     assert messages.STATUS_OFF_MESSAGE in api.sent[-1]["text"]
+    assert api.sent[-1]["reply_markup"] == {"remove_keyboard": True, "selective": True}
+
+    await app.process_update(incoming(app, messages.DEFENSE_BUTTON, chat_type="group"))
+    assert api.sent[-1]["text"] == messages.PANEL_OFF_MESSAGE
+    assert api.sent[-1]["reply_markup"] == {"remove_keyboard": True, "selective": True}
+
+    await app.process_update(incoming(app, "/on", chat_type="group"))
+    assert api.sent[-1]["reply_markup"]["selective"] is True
     await app.process_update(incoming(app, messages.DEFENSE_BUTTON, chat_type="group"))
     assert api.sent[-1]["text"] == messages.GROUP_DEFENSE_MENU
+    assert api.sent[-1]["reply_markup"]["selective"] is True
 
 
 async def test_defense_dice_respect_the_same_group_switch(bot_app):
@@ -582,6 +593,7 @@ async def test_dedicated_on_off_buttons_work_for_the_clicking_user(bot_app):
     )
     assert not store.is_enabled(-100123, 51)
     assert api.sent[-1]["text"] == messages.OFF_MESSAGE
+    assert api.sent[-1]["reply_markup"] == {"remove_keyboard": True, "selective": True}
 
 
 async def test_off_button_immediately_blocks_the_same_users_next_roll(bot_app):
@@ -625,6 +637,28 @@ async def test_private_status_and_version_commands(bot_app):
 
     await app.process_update(incoming(app, "/version"))
     assert api.sent[-1]["text"] == "🎲 ᎠᏆᏟᎬ Bot v1.1.4"
+
+
+async def test_one_members_off_does_not_change_another_members_activation(bot_app):
+    app, api = bot_app
+    store = app.bot_data["activation_store"]
+
+    await app.process_update(incoming(app, "/on", user_id=61, chat_type="group"))
+    await app.process_update(incoming(app, "/on", user_id=62, chat_type="group"))
+    assert store.is_enabled(-100123, 61)
+    assert store.is_enabled(-100123, 62)
+
+    await app.process_update(incoming(app, messages.OFF_BUTTON, user_id=61, chat_type="group"))
+    assert not store.is_enabled(-100123, 61)
+    assert store.is_enabled(-100123, 62)
+    assert api.sent[-1]["reply_markup"] == {"remove_keyboard": True, "selective": True}
+
+    before = len(api.sent)
+    with patch("dise_bot.handlers.dice.roll", return_value=9):
+        await app.process_update(incoming(app, messages.GREEN_BUTTON, user_id=62, chat_type="group"))
+    assert len(api.sent) == before + 1
+    assert api.sent[-1]["text"] == "+9"
+    assert api.sent[-1]["reply_markup"]["selective"] is True
 
 
 async def test_activation_survives_a_new_store_instance(bot_app, tmp_path):
