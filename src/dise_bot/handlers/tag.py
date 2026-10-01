@@ -86,9 +86,7 @@ async def fetch_all_members_mtproto(
         logger.error("Telethon is not installed; full /tag sync is unavailable.")
         return None
 
-    def member_tuple(member) -> tuple[int, str] | None:
-        if getattr(member, "bot", False) or getattr(member, "deleted", False):
-            return None
+    def member_tuple(member) -> tuple[int, str]:
         name = " ".join(
             part
             for part in (
@@ -114,23 +112,25 @@ async def fetch_all_members_mtproto(
             channel = types.InputChannel(real_id, 0)
             offset = 0
             limit = 200
+            expected_total = None
             while True:
                 result = await client(
                     functions.channels.GetParticipantsRequest(
                         channel=channel,
-                        filter=types.ChannelParticipantsRecent(),
+                        filter=types.ChannelParticipantsSearch(""),
                         offset=offset,
                         limit=limit,
                         hash=0,
                     )
                 )
+                if expected_total is None:
+                    expected_total = result.count
                 for member in result.users:
                     item = member_tuple(member)
-                    if item is not None:
-                        found[item[0]] = item[1]
+                    found[item[0]] = item[1]
                 received = len(result.participants)
                 offset += received
-                if received == 0 or offset >= result.count:
+                if received == 0:
                     break
 
         elif peer_type is types.PeerChat:
@@ -143,12 +143,21 @@ async def fetch_all_members_mtproto(
                 if member is None:
                     continue
                 item = member_tuple(member)
-                if item is not None:
-                    found[item[0]] = item[1]
+                found[item[0]] = item[1]
+            expected_total = len(participant_rows)
         else:
             raise RuntimeError("Unsupported Telegram chat type for full member sync.")
 
-        return sorted(found.items())
+        expected_total = expected_total or 0
+        if len(found) < expected_total:
+            raise RuntimeError(
+                f"Telegram returned an incomplete member list ({len(found)}/{expected_total})."
+            )
+        return sorted(
+            (user_id, name)
+            for user_id, name in found.items()
+            if user_id != context.bot.id
+        )
     except Exception as error:
         logger.warning("Full MTProto member sync failed (%s).", type(error).__name__)
         raise RuntimeError("Could not load the full member list from Telegram.") from None
