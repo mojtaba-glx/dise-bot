@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --require-hashes -r requirements.txt
+RUN pip install --no-cache-dir "telethon==1.45.0"
 
 COPY src/ ./src/
 ENV PYTHONPATH=/app/src
