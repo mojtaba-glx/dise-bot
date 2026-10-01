@@ -19,6 +19,9 @@ class ManagementStore:
         self.owner_user_id = owner_user_id
         path.parent.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(path, timeout=5)) as connection:
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("PRAGMA synchronous=NORMAL")
+            connection.execute("PRAGMA busy_timeout=5000")
             with connection:
                 connection.execute(
                     "CREATE TABLE IF NOT EXISTS banned_users (user_id INTEGER PRIMARY KEY)"
@@ -51,24 +54,35 @@ class ManagementStore:
                     "SELECT chat_id, trigger, response FROM auto_replies"
                 )
             }
+            self._languages = {
+                user_id: language
+                for user_id, language in connection.execute(
+                    "SELECT user_id, language FROM admin_preferences"
+                )
+                if language in {"en", "fa"}
+            }
+            self._group_member_state = {
+                (chat_id, user_id): (display_name, bool(active))
+                for chat_id, user_id, display_name, active in connection.execute(
+                    "SELECT chat_id, user_id, display_name, active FROM group_members"
+                )
+            }
 
     def language_for(self, user_id: int) -> str:
-        with closing(sqlite3.connect(self._path, timeout=5)) as connection:
-            row = connection.execute(
-                "SELECT language FROM admin_preferences WHERE user_id = ?",
-                (user_id,),
-            ).fetchone()
-        return row[0] if row and row[0] in {"en", "fa"} else "en"
+        return self._languages.get(user_id, "en")
 
     def set_language(self, user_id: int, language: str) -> None:
         if language not in {"en", "fa"}:
             raise ValueError("Unsupported admin language.")
+        if self._languages.get(user_id) == language:
+            return
         with closing(sqlite3.connect(self._path, timeout=5)) as connection, connection:
             connection.execute(
                 "INSERT INTO admin_preferences (user_id, language) VALUES (?, ?) "
                 "ON CONFLICT(user_id) DO UPDATE SET language = excluded.language",
                 (user_id, language),
             )
+        self._languages[user_id] = language
 
     def is_owner(self, user_id: int) -> bool:
         return self.owner_user_id is not None and user_id == self.owner_user_id
@@ -157,6 +171,10 @@ class ManagementStore:
         if not -(2**63) < chat_id < 0 or not 0 < user_id < 2**63:
             return
         name = re.sub(r"\s+", " ", display_name).strip()[:128] or str(user_id)
+        key = (chat_id, user_id)
+        state = (name, bool(active))
+        if self._group_member_state.get(key) == state:
+            return
         with closing(sqlite3.connect(self._path, timeout=5)) as connection, connection:
             connection.execute(
                 "INSERT INTO group_members (chat_id, user_id, display_name, active) "
@@ -165,14 +183,11 @@ class ManagementStore:
                 "display_name = excluded.display_name, active = excluded.active",
                 (chat_id, user_id, name, 1 if active else 0),
             )
+        self._group_member_state[key] = state
 
     def group_members(self, chat_id: int) -> list[tuple[int, str]]:
-        with closing(sqlite3.connect(self._path, timeout=5)) as connection:
-            return [
-                (user_id, display_name)
-                for user_id, display_name in connection.execute(
-                    "SELECT user_id, display_name FROM group_members "
-                    "WHERE chat_id = ? AND active = 1 ORDER BY user_id",
-                    (chat_id,),
-                )
-            ]
+        return sorted(
+            (user_id, display_name)
+            for (group_id, user_id), (display_name, active) in self._group_member_state.items()
+            if group_id == chat_id and active
+        )
