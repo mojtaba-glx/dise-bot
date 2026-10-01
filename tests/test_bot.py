@@ -278,6 +278,7 @@ async def test_ablity_screen_keeps_group_switches_available(bot_app):
     assert api.sent[-1]["reply_markup"]["keyboard"][-1] == [
         {"text": messages.ON_BUTTON},
         {"text": messages.OFF_BUTTON},
+        {"text": messages.STATUS_BUTTON},
     ]
 
 
@@ -501,6 +502,7 @@ async def test_on_and_off_change_only_one_user_in_one_group(bot_app):
     assert api.sent[-1]["reply_markup"]["keyboard"][-1] == [
         {"text": messages.ON_BUTTON},
         {"text": messages.OFF_BUTTON},
+        {"text": messages.STATUS_BUTTON},
     ]
 
     await app.process_update(incoming(app, "/on", user_id=12, chat_type="group"))
@@ -525,8 +527,9 @@ async def test_on_and_off_change_only_one_user_in_one_group(bot_app):
 async def test_group_menus_explain_how_to_enable_dice(bot_app):
     app, api = bot_app
     await app.process_update(incoming(app, "/start", chat_type="group"))
-    assert api.sent[-1]["text"] == messages.GROUP_WELCOME
-    assert "Use /on" in api.sent[-1]["text"]
+    assert api.sent[-1]["text"].startswith(messages.GROUP_WELCOME)
+    assert "use /on" in api.sent[-1]["text"].lower()
+    assert messages.STATUS_OFF_MESSAGE in api.sent[-1]["text"]
     await app.process_update(incoming(app, messages.DEFENSE_BUTTON, chat_type="group"))
     assert api.sent[-1]["text"] == messages.GROUP_DEFENSE_MENU
 
@@ -579,6 +582,49 @@ async def test_dedicated_on_off_buttons_work_for_the_clicking_user(bot_app):
     )
     assert not store.is_enabled(-100123, 51)
     assert api.sent[-1]["text"] == messages.OFF_MESSAGE
+
+
+async def test_off_button_immediately_blocks_the_same_users_next_roll(bot_app):
+    app, api = bot_app
+
+    await app.process_update(incoming(app, messages.ON_BUTTON, user_id=51, chat_type="group"))
+    with patch("dise_bot.handlers.dice.roll", return_value=7) as roll:
+        await app.process_update(incoming(app, messages.GREEN_BUTTON, user_id=51, chat_type="group"))
+        roll.assert_called_once()
+    assert api.sent[-1]["text"] == "+7"
+
+    await app.process_update(incoming(app, messages.OFF_BUTTON, user_id=51, chat_type="group"))
+    assert api.sent[-1]["text"] == messages.OFF_MESSAGE
+    before = len(api.sent)
+
+    with patch("dise_bot.handlers.dice.roll") as roll:
+        await app.process_update(incoming(app, messages.GREEN_BUTTON, user_id=51, chat_type="group"))
+        roll.assert_not_called()
+    assert len(api.sent) == before
+
+
+async def test_status_button_and_command_show_only_the_clicking_users_state(bot_app):
+    app, api = bot_app
+
+    await app.process_update(incoming(app, "/status", user_id=51, chat_type="group"))
+    assert api.sent[-1]["text"] == messages.STATUS_OFF_MESSAGE
+
+    await app.process_update(incoming(app, messages.ON_BUTTON, user_id=51, chat_type="group"))
+    await app.process_update(incoming(app, messages.STATUS_BUTTON, user_id=51, chat_type="group"))
+    assert api.sent[-1]["text"] == messages.STATUS_ON_MESSAGE
+
+    await app.process_update(incoming(app, messages.STATUS_BUTTON, user_id=52, chat_type="group"))
+    assert api.sent[-1]["text"] == messages.STATUS_OFF_MESSAGE
+
+
+async def test_private_status_and_version_commands(bot_app):
+    app, api = bot_app
+
+    await app.process_update(incoming(app, "/status"))
+    assert api.sent[-1]["text"] == messages.PRIVATE_STATUS_MESSAGE
+
+    await app.process_update(incoming(app, "/version"))
+    assert api.sent[-1]["text"] == "🎲 ᎠᏆᏟᎬ Bot v1.1.4"
 
 
 async def test_activation_survives_a_new_store_instance(bot_app, tmp_path):
