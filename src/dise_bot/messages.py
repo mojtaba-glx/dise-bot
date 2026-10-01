@@ -6,6 +6,7 @@ DEFENSE_BUTTON = "🛡️ ᎠᎬᎰᎬᏁᏚᎬ"
 ABLITY_BUTTON = "✨ ᎪᏴᏞᏆᎢᎩ"
 ON_BUTTON = "🟢 ON"
 OFF_BUTTON = "🔴 OFF"
+STATUS_BUTTON = "⚙️ STATUS"
 PANEL_BUTTON = "👑 ᏢᎪᏁᎬᏞ"
 BAN_BUTTON = "🚫 Ban user"
 UNBAN_BUTTON = "✅ Unban user"
@@ -66,6 +67,8 @@ HELP = (
     "/defense light 3 — Calculate a specific defense roll\n"
     "/on — Enable your dice in a group\n"
     "/off — Disable your dice in a group\n"
+    "/status — Show your dice status in this group\n"
+    "/version — Show the running bot version\n"
     "/help — Show this guide"
 )
 
@@ -76,3 +79,6 @@ GROUP_ONLY_MESSAGE = "Use /on and /off inside a group. Private dice remain avail
 CREDIT = "بات ساخته شده توسط @Anthony_0088"
 ON_MESSAGE = f"🟢 ON — your dice are active in this group.\n{CREDIT}"
 OFF_MESSAGE = f"🔴 OFF — your dice are inactive in this group.\n{CREDIT}"
+STATUS_ON_MESSAGE = "⚙️ Your dice status: 🟢 ON"
+STATUS_OFF_MESSAGE = "⚙️ Your dice status: 🔴 OFF"
+PRIVATE_STATUS_MESSAGE = "⚙️ Dice status: 🟢 ON\nPrivate-chat dice are always active."
