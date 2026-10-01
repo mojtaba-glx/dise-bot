@@ -2,6 +2,7 @@ from telegram import ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes
 
 from dise_bot import __version__, messages
+from dise_bot.handlers.force_join import pending_force_join_input
 from dise_bot.handlers.management import manager_store, pending_panel_input
 from dise_bot.keyboards import ablity_keyboard, dice_keyboard
 from dise_bot.services.activation import ActivationStore, is_group
@@ -44,6 +45,7 @@ def activation_status_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_message:
         context.user_data.pop("pending_panel_action", None)
+        context.user_data.pop("pending_force_join_action", None)
         text = messages.WELCOME
         if is_group(update):
             text = f"{messages.GROUP_WELCOME}\n\n{activation_status_text(update, context)}"
@@ -96,6 +98,8 @@ async def show_ablity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_message:
         if await pending_panel_input(update, context):
+            return
+        if await pending_force_join_input(update, context):
             return
         await update.effective_message.reply_text(
             messages.UNKNOWN_MESSAGE, reply_markup=main_keyboard(update, context)
