@@ -21,10 +21,9 @@ def admin_text(context: ContextTypes.DEFAULT_TYPE, user_id: int, key: str, **kwa
 
 
 def button_action(label: str) -> str | None:
-    for language in admin_i18n.SUPPORTED_LANGUAGES:
-        for key, value in admin_i18n.BUTTONS[language].items():
-            if label == value:
-                return key
+    action = admin_i18n.BUTTON_ACTIONS.get(label)
+    if action is not None:
+        return action
     if label == admin_i18n.LANGUAGE_BUTTONS[admin_i18n.LANG_FA]:
         return "lang_fa"
     if label == admin_i18n.LANGUAGE_BUTTONS[admin_i18n.LANG_EN]:
