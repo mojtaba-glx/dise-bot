@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.2.1**
+**Version 1.2.2**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -272,6 +272,12 @@ makes it possible to test the rule with an admin account.
 
 Existing single-channel databases are migrated automatically to the multi-channel format. The migrated
 channel is preserved and can later be removed normally without reappearing after a restart.
+
+### Performance improvements
+
+v1.2.2 keeps hot admin language and known-member state in memory, skips redundant SQLite writes,
+uses SQLite WAL/NORMAL mode for better concurrent access, precomputes admin button routing, and checks
+multiple required-membership channels concurrently. Game roll logic and probabilities are unchanged.
 
 ### Bilingual admin panel
 
