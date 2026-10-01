@@ -1,6 +1,6 @@
 """Group-only commands that affect only the sending user's dice."""
 
-from telegram import Update
+from telegram import ReplyKeyboardRemove, Update
 from telegram.ext import ApplicationHandlerStop, ContextTypes
 
 from dise_bot import messages
@@ -24,10 +24,18 @@ async def _set_activation(
 
     store: ActivationStore = context.application.bot_data["activation_store"]
     store.set_enabled(chat.id, user.id, enabled=enabled)
-    await message.reply_text(
-        messages.ON_MESSAGE if enabled else messages.OFF_MESSAGE,
-        reply_markup=dice_keyboard(group_controls=True),
-    )
+    if enabled:
+        await message.reply_text(
+            messages.ON_MESSAGE,
+            reply_markup=dice_keyboard(group_controls=True),
+            do_quote=True,
+        )
+    else:
+        await message.reply_text(
+            messages.OFF_MESSAGE,
+            reply_markup=ReplyKeyboardRemove(selective=True),
+            do_quote=True,
+        )
 
 
 async def on_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
