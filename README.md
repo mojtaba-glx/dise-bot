@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.2.0**
+**Version 1.2.1**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -274,6 +274,10 @@ Existing single-channel databases are migrated automatically to the multi-channe
 channel is preserved and can later be removed normally without reappearing after a restart.
 
 ### Bilingual admin panel
+
+Admin reply-keyboard buttons are routed through one deterministic private-admin handler. This prevents
+Settings, language, and required-membership buttons from being swallowed by overlapping handlers.
+
 
 The private admin experience supports **English and Persian** independently for each owner/admin.
 Open **Settings / تنظیمات** and choose **🇬🇧 English** or **🇮🇷 فارسی**. The preference is stored in
