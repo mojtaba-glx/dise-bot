@@ -3,6 +3,7 @@
 from telegram import Chat, Update
 from telegram.ext import ContextTypes
 
+from dise_bot import admin_i18n
 from dise_bot.handlers.force_join import join_panel_button
 from dise_bot.handlers.management import button_action, manager_store, panel_button
 
@@ -31,11 +32,13 @@ async def admin_private_button_router(
         or chat is None
         or chat.type != Chat.PRIVATE
         or user.is_bot
-        or not manager_store(context).is_manager(user.id)
     ):
         return
 
     action = button_action(message.text or "")
+    if not manager_store(context).is_manager(user.id):
+        await message.reply_text(admin_i18n.text("en", "access_denied"))
+        return
     if action in FORCE_JOIN_ACTIONS:
         await join_panel_button(update, context)
         return
