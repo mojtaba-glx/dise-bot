@@ -617,7 +617,7 @@ async def test_private_status_and_version_commands(bot_app):
     assert api.sent[-1]["text"] == messages.PRIVATE_STATUS_MESSAGE
 
     await app.process_update(incoming(app, "/version"))
-    assert api.sent[-1]["text"] == "🎲 ᎠᏆᏟᎬ Bot v1.1.6"
+    assert api.sent[-1]["text"] == "🎲 ᎠᏆᏟᎬ Bot v1.1.7"
 
 
 async def test_one_members_off_does_not_change_another_members_activation(bot_app):
