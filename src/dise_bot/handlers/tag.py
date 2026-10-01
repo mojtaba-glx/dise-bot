@@ -103,7 +103,11 @@ async def fetch_all_members_mtproto(
             if getattr(member, "bot", False) or getattr(member, "deleted", False):
                 continue
             name = " ".join(
-                part for part in (getattr(member, "first_name", None), getattr(member, "last_name", None))
+                part
+                for part in (
+                    getattr(member, "first_name", None),
+                    getattr(member, "last_name", None),
+                )
                 if part
             ).strip()
             name = name or getattr(member, "username", None) or str(member.id)
