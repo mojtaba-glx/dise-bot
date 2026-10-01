@@ -22,8 +22,8 @@ from telegram.ext import (
 from dise_bot import admin_i18n
 from dise_bot.config import ConfigurationError, Settings, load_settings
 from dise_bot.handlers.absolute import absolute_button
-from dise_bot.handlers.admin_router import admin_private_button_router
 from dise_bot.handlers.activation import off_command, on_command
+from dise_bot.handlers.admin_router import admin_private_button_router
 from dise_bot.handlers.aura import aura_button
 from dise_bot.handlers.commands import (
     help_command,
