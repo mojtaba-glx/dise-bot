@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.1.1**
+**Version 1.1.2**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -44,6 +44,15 @@ shell installs into `/root/dise-bot` without sudo. Run the same command to
 update an existing clean checkout. The bot's `.env` and saved data are retained;
 the token is requested only on first setup. `curl` is needed to fetch the script.
 To use another location, set `DISE_BOT_DIR` before the command.
+
+If `~/dise-bot` already contains an older non-Git bot with a Docker Compose
+file, set `DISE_BOT_REPLACE_EXISTING=1` on the install command to replace it.
+The installer stops the old Compose service, temporarily moves its files aside,
+and removes those files after the new installation succeeds. If installation
+fails, it restores the old files. It does not delete Docker volumes, so saved
+bot state remains available. The new installation asks for a BotFather token.
+An old bot started outside Docker Compose must be stopped separately before
+replacement.
 
 If you already cloned the repository and have Docker Compose, run:
 
