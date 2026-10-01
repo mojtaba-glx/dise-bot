@@ -40,14 +40,14 @@ WELCOME = (
     "🟢 Green: +1 to +10\n\n"
     "Tap a dice to roll or open a menu."
 )
-GROUP_WELCOME = WELCOME + "\n\nTap 🟢 ON or use /on to enable your dice in this group."
+GROUP_WELCOME = WELCOME + "\n\nIf your panel is OFF, send /on to show your personal keyboard."
 
 ABLITY_MENU = "✨ ᎪᏴᏞᏆᎢᎩ\n━━━━━━━━━━━━━━\nAbility options will be added here."
 
 DEFENSE_MENU = (
     "🛡️ ᎠᎬᎰᎬᏁᏚᎬ\n━━━━━━━━━━━━━━\nChoose a tier to get your defense.\n\n25% · 50% · 75% · 100%"
 )
-GROUP_DEFENSE_MENU = DEFENSE_MENU + "\n\nTap 🟢 ON or use /on to enable your rolls in this group."
+GROUP_DEFENSE_MENU = DEFENSE_MENU + "\n\nYour personal panel must be ON to use defense."
 
 HELP = (
     "🎲 ᎠᏆᏟᎬ · How to play\n\n"
@@ -78,7 +78,8 @@ UNEXPECTED_ERROR = "Something went wrong. Please try again in a moment."
 GROUP_ONLY_MESSAGE = "Use /on and /off inside a group. Private dice remain available."
 CREDIT = "بات ساخته شده توسط @Anthony_0088"
 ON_MESSAGE = f"🟢 ON — your dice are active in this group.\n{CREDIT}"
-OFF_MESSAGE = f"🔴 OFF — your dice are inactive in this group.\n{CREDIT}"
+OFF_MESSAGE = f"🔴 OFF — your personal panel is hidden in this group.\nSend /on to show it again.\n{CREDIT}"
 STATUS_ON_MESSAGE = "⚙️ Your dice status: 🟢 ON"
 STATUS_OFF_MESSAGE = "⚙️ Your dice status: 🔴 OFF"
+PANEL_OFF_MESSAGE = "🔴 Your personal panel is OFF. Send /on to show it again."
 PRIVATE_STATUS_MESSAGE = "⚙️ Dice status: 🟢 ON\nPrivate-chat dice are always active."
