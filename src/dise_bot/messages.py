@@ -76,7 +76,10 @@ UNEXPECTED_ERROR = "Something went wrong. Please try again in a moment."
 GROUP_ONLY_MESSAGE = "Use /on and /off inside a group. Private dice remain available."
 CREDIT = "بات ساخته شده توسط @Anthony_0088"
 ON_MESSAGE = f"🟢 ON — your dice are active in this group.\n{CREDIT}"
-OFF_MESSAGE = f"🔴 OFF — your personal panel is hidden in this group.\nSend /on to show it again.\n{CREDIT}"
+OFF_MESSAGE = (
+    "🔴 OFF — your personal panel is hidden in this group.\n"
+    f"Send /on to show it again.\n{CREDIT}"
+)
 STATUS_ON_MESSAGE = "⚙️ Your dice status: 🟢 ON"
 STATUS_OFF_MESSAGE = "⚙️ Your dice status: 🔴 OFF"
 PANEL_OFF_MESSAGE = "🔴 Your personal panel is OFF. Send /on to show it again."
