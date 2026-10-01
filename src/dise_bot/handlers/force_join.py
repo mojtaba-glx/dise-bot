@@ -28,9 +28,6 @@ PUBLIC_USERNAME = re.compile(r"@[A-Za-z0-9_]{5,32}\Z")
 PRIVATE_INVITE = re.compile(r"https://t\.me/(?:\+[A-Za-z0-9_-]+|joinchat/[A-Za-z0-9_-]+)\Z")
 BOT_COMMANDS = {"start", "help", "on", "off", "status", "version", "red", "green", "defense"}
 BOT_BUTTONS = {
-    messages.ON_BUTTON,
-    messages.OFF_BUTTON,
-    messages.STATUS_BUTTON,
     messages.RED_BUTTON,
     messages.GREEN_BUTTON,
     messages.DEFENSE_BUTTON,
