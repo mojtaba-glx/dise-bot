@@ -62,6 +62,7 @@ async def panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await message.reply_text(admin_i18n.text(language, "panel_private"))
         return
     context.user_data.pop("pending_panel_action", None)
+    context.user_data.pop("pending_force_join_action", None)
     await message.reply_text(
         admin_i18n.text(language, "panel_title"),
         reply_markup=panel_keyboard(owner=store.is_owner(user.id), language=language),
@@ -76,6 +77,8 @@ async def settings_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not store.is_manager(user.id):
         return
     language = store.language_for(user.id)
+    context.user_data.pop("pending_panel_action", None)
+    context.user_data.pop("pending_force_join_action", None)
     await message.reply_text(
         admin_i18n.text(
             language,
