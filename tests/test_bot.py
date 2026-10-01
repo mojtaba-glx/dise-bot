@@ -11,7 +11,7 @@ from telegram import Update
 from telegram.error import Conflict, Forbidden, NetworkError
 from telegram.request import HTTPXRequest
 
-from dise_bot import messages
+from dise_bot import admin_i18n, messages
 from dise_bot.app import build_application, set_commands
 from dise_bot.config import Settings
 from dise_bot.services.activation import ActivationStore
@@ -904,30 +904,66 @@ def test_management_stays_disabled_without_owner_id(tmp_path):
 async def test_owner_enables_force_join_and_member_can_roll(bot_app, tmp_path):
     app, api = bot_app
     await app.process_update(incoming(app, "/join set @testchannel", user_id=1))
-    required = app.bot_data["force_join_store"].required_chat
+    store = app.bot_data["force_join_store"]
+    assert store.enabled
+    assert len(store.required_chats) == 1
+    required = store.required_chats[0]
     assert required.chat_id == -100777
     assert required.join_url == "https://t.me/testchannel"
-    assert ForceJoinStore(tmp_path / "activation.sqlite3").required_chat == required
+    assert ForceJoinStore(tmp_path / "activation.sqlite3").required_chats == [required]
+
     before = len(api.sent)
     with patch("dise_bot.handlers.dice.roll") as roll:
         await app.process_update(incoming(app, "/red", user_id=42))
         roll.assert_not_called()
     assert len(api.sent) == before + 1
     prompt = api.sent[-1]
-    assert "Join Required channel" in prompt["text"]
+    assert "Join all required channels" in prompt["text"]
     buttons = prompt["reply_markup"]["inline_keyboard"]
     assert buttons[0][0]["url"] == "https://t.me/testchannel"
-    assert buttons[1][0]["callback_data"] == "force_join_check"
+    assert buttons[-1][0]["callback_data"] == "force_join_check"
+
     await app.process_update(incoming_join_check(app))
     assert api.calls[-1][0] == "answerCallbackQuery"
-    assert "Join the channel first" in api.calls[-1][1]["text"]
+    assert "Join all required channels first" in api.calls[-1][1]["text"]
+
     api.member_statuses[42] = "member"
     await app.process_update(incoming_join_check(app))
     assert api.calls[-2][0] == "answerCallbackQuery"
     assert api.calls[-1][0] == "editMessageText"
+
     with patch("dise_bot.handlers.dice.roll", return_value=-3):
         await app.process_update(incoming(app, "/red", user_id=42))
     assert api.sent[-1]["text"] == "-3"
+
+
+async def test_multiple_required_channels_all_must_be_joined(bot_app):
+    app, api = bot_app
+    await app.process_update(incoming(app, "/join add @testchannel", user_id=1))
+    await app.process_update(incoming(app, "/join add @secondchannel", user_id=1))
+    store = app.bot_data["force_join_store"]
+    assert not store.enabled
+    assert {chat.chat_id for chat in store.configured_chats} == {-100777, -100999}
+
+    await app.process_update(incoming(app, "/join on", user_id=1))
+    assert store.enabled
+    assert len(store.required_chats) == 2
+
+    api.member_statuses[(-100777, 42)] = "member"
+    api.member_statuses[(-100999, 42)] = "left"
+    before = len(api.sent)
+    with patch("dise_bot.handlers.dice.roll") as roll:
+        await app.process_update(incoming(app, "/green", user_id=42))
+        roll.assert_not_called()
+    prompt = api.sent[-1]
+    assert len(prompt["reply_markup"]["inline_keyboard"]) == 3
+    assert "Second required channel" in prompt["text"]
+
+    api.member_statuses[(-100999, 42)] = "member"
+    with patch("dise_bot.handlers.dice.roll", return_value=8):
+        await app.process_update(incoming(app, "/green", user_id=42))
+    assert len(api.sent) == before + 2
+    assert api.sent[-1]["text"] == "+8"
 
 
 async def test_force_join_group_gate_only_checks_bot_interactions(bot_app):
@@ -937,9 +973,11 @@ async def test_force_join_group_gate_only_checks_bot_interactions(bot_app):
     await app.process_update(incoming(app, "hello", chat_type="group"))
     await app.process_update(incoming(app, "/red@OtherBot", chat_type="group"))
     assert len(api.sent) == before
+
     await app.process_update(incoming(app, "/on", chat_type="group"))
-    assert "Join Required channel" in api.sent[-1]["text"]
+    assert "Join all required channels" in api.sent[-1]["text"]
     assert not app.bot_data["activation_store"].is_enabled(-100123, 42)
+
     api.member_statuses[42] = "restricted"
     await app.process_update(incoming(app, "/on", chat_type="group"))
     assert api.sent[-1]["text"] == messages.ON_MESSAGE
@@ -950,7 +988,8 @@ async def test_force_join_blocks_auto_replies_and_bans_take_priority(bot_app):
     await app.process_update(incoming(app, "/join set @testchannel", user_id=1))
     await app.process_update(incoming(app, "/reply add سلام | درود", user_id=1, chat_type="group"))
     await app.process_update(incoming(app, "سلام", user_id=42, chat_type="group"))
-    assert "Join Required channel" in api.sent[-1]["text"]
+    assert "Join all required channels" in api.sent[-1]["text"]
+
     await app.process_update(incoming(app, "/ban 42", user_id=1))
     before = len(api.sent)
     await app.process_update(incoming(app, "سلام", user_id=42, chat_type="group"))
@@ -962,53 +1001,154 @@ async def test_force_join_blocks_auto_replies_and_bans_take_priority(bot_app):
 async def test_force_join_generates_private_link_and_can_toggle(bot_app, tmp_path):
     app, api = bot_app
     api.bot_status = "member"
-    await app.process_update(incoming(app, "/join set @testchannel", user_id=1))
-    assert app.bot_data["force_join_store"].required_chat is None
+    await app.process_update(incoming(app, "/join add @testchannel", user_id=1))
+    assert not app.bot_data["force_join_store"].configured_chats
     assert "Make this bot an admin" in api.sent[-1]["text"]
+
     api.bot_status = "administrator"
-    await app.process_update(incoming(app, "/join set -100888", user_id=1))
+    await app.process_update(incoming(app, "/join add -100888", user_id=1))
     store = app.bot_data["force_join_store"]
-    first_link = store.required_chat.join_url
+    assert not store.enabled
+    first_link = store.configured_chats[0].join_url
     assert first_link.startswith("https://t.me/+Generated")
     assert any(method == "createChatInviteLink" for method, _ in api.calls)
-    await app.process_update(incoming(app, "/join set -100888 https://evil.com/x", user_id=1))
-    assert store.required_chat.join_url == first_link
+
+    await app.process_update(incoming(app, "/join add -100888 https://evil.com/x", user_id=1))
+    assert store.configured_chats[0].join_url == first_link
+
     await app.process_update(
-        incoming(app, "/join set -100888 https://t.me/+PrivateInvite", user_id=1)
+        incoming(app, "/join add -100888 https://t.me/+PrivateInvite", user_id=1)
     )
-    assert store.required_chat.join_url == "https://t.me/+PrivateInvite"
-    await app.process_update(incoming(app, "/join off", user_id=1))
-    assert store.required_chat is None
-    assert store.configured_chat.join_url == "https://t.me/+PrivateInvite"
-    persisted = ForceJoinStore(tmp_path / "activation.sqlite3")
-    assert persisted.required_chat is None
-    assert persisted.configured_chat.join_url == "https://t.me/+PrivateInvite"
-    await app.process_update(incoming(app, "/join status", user_id=1))
-    assert "Required membership is off" in api.sent[-1]["text"]
+    assert store.configured_chats[0].join_url == "https://t.me/+PrivateInvite"
+
     await app.process_update(incoming(app, "/join on", user_id=1))
-    assert store.required_chat.join_url.startswith("https://t.me/+Generated")
-    assert store.required_chat.join_url != first_link
-    assert ForceJoinStore(tmp_path / "activation.sqlite3").required_chat == store.required_chat
+    assert store.enabled
+    refreshed_link = store.required_chats[0].join_url
+    assert refreshed_link.startswith("https://t.me/+Generated")
+
+    await app.process_update(incoming(app, "/join off", user_id=1))
+    assert not store.enabled
+    assert not store.required_chats
+    assert store.configured_chats
+
+    persisted = ForceJoinStore(tmp_path / "activation.sqlite3")
+    assert not persisted.enabled
+    assert persisted.configured_chats == store.configured_chats
+
+    await app.process_update(incoming(app, "/join on", user_id=1))
+    assert store.enabled
+    assert ForceJoinStore(tmp_path / "activation.sqlite3").required_chats == store.required_chats
 
 
-async def test_force_join_panel_permissions_and_check_failure(bot_app):
+async def test_force_join_panel_buttons_and_per_admin_language(bot_app, tmp_path):
+    app, api = bot_app
+    await app.process_update(incoming(app, "/admin 12", user_id=1))
+    store = app.bot_data["management_store"]
+    assert store.is_admin(12)
+
+    await app.process_update(incoming(app, "/panel", user_id=12))
+    labels = [
+        button["text"]
+        for row in api.sent[-1]["reply_markup"]["keyboard"]
+        for button in row
+    ]
+    assert admin_i18n.button("en", "force_join") in labels
+    assert admin_i18n.button("en", "settings") in labels
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("en", "settings"), user_id=12)
+    )
+    await app.process_update(
+        incoming(
+            app,
+            admin_i18n.LANGUAGE_BUTTONS[admin_i18n.LANG_FA],
+            user_id=12,
+        )
+    )
+    assert store.language_for(12) == "fa"
+    assert ManagementStore(
+        tmp_path / "activation.sqlite3",
+        owner_user_id=1,
+    ).language_for(12) == "fa"
+
+    await app.process_update(incoming(app, "/panel", user_id=12))
+    labels = [
+        button["text"]
+        for row in api.sent[-1]["reply_markup"]["keyboard"]
+        for button in row
+    ]
+    assert admin_i18n.button("fa", "force_join") in labels
+    assert admin_i18n.button("fa", "settings") in labels
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "force_join"), user_id=12)
+    )
+    membership_labels = [
+        button["text"]
+        for row in api.sent[-1]["reply_markup"]["keyboard"]
+        for button in row
+    ]
+    assert admin_i18n.button("fa", "join_on") in membership_labels
+    assert admin_i18n.button("fa", "join_off") in membership_labels
+    assert admin_i18n.button("fa", "join_add") in membership_labels
+    assert admin_i18n.button("fa", "join_remove") in membership_labels
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "join_add"), user_id=12)
+    )
+    await app.process_update(incoming(app, "@testchannel", user_id=12))
+    assert len(app.bot_data["force_join_store"].configured_chats) == 1
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "join_on"), user_id=12)
+    )
+    assert app.bot_data["force_join_store"].enabled
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "join_off"), user_id=12)
+    )
+    assert not app.bot_data["force_join_store"].enabled
+
+    await app.process_update(incoming(app, "/panel", user_id=1))
+    owner_labels = [
+        button["text"]
+        for row in api.sent[-1]["reply_markup"]["keyboard"]
+        for button in row
+    ]
+    assert admin_i18n.button("en", "settings") in owner_labels
+
+
+async def test_force_join_panel_permission_and_check_failure(bot_app):
     app, api = bot_app
     await app.process_update(incoming(app, "/panel", user_id=1))
-    labels = [button["text"] for row in api.sent[-1]["reply_markup"]["keyboard"] for button in row]
-    assert messages.FORCE_JOIN_BUTTON in labels
-    await app.process_update(incoming(app, messages.FORCE_JOIN_BUTTON, user_id=1))
-    assert "/join set @channelname" in api.sent[-1]["text"]
-    await app.process_update(incoming(app, "/join set @testchannel", user_id=42))
-    assert app.bot_data["force_join_store"].required_chat is None
+    labels = [
+        button["text"]
+        for row in api.sent[-1]["reply_markup"]["keyboard"]
+        for button in row
+    ]
+    assert admin_i18n.button("en", "force_join") in labels
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("en", "force_join"), user_id=1)
+    )
+    assert admin_i18n.button("en", "join_on") in {
+        button["text"]
+        for row in api.sent[-1]["reply_markup"]["keyboard"]
+        for button in row
+    }
+
+    await app.process_update(incoming(app, "/join add @testchannel", user_id=42))
+    assert not app.bot_data["force_join_store"].configured_chats
+
     await app.process_update(incoming(app, "/join set @testchannel", user_id=1))
     api.fail_member_check = True
     await app.process_update(incoming(app, "/green", user_id=42))
-    assert "Join Required channel" in api.sent[-1]["text"]
+    assert "Join all required channels" in api.sent[-1]["text"]
     await app.process_update(incoming_join_check(app))
     assert "Could not verify membership" in api.calls[-1][1]["text"]
 
 
-def test_existing_force_join_database_is_migrated(tmp_path):
+def test_existing_force_join_database_is_migrated_to_multi_channel_store(tmp_path):
     path = tmp_path / "state.sqlite3"
     with sqlite3.connect(path) as connection:
         connection.execute(
@@ -1018,11 +1158,25 @@ def test_existing_force_join_database_is_migrated(tmp_path):
         connection.execute(
             "INSERT INTO force_join VALUES (1, -100777, 'Old channel', 'https://t.me/oldchannel')"
         )
+
     store = ForceJoinStore(path)
-    assert store.required_chat == RequiredChat(-100777, "Old channel", "https://t.me/oldchannel")
+    old = RequiredChat(-100777, "Old channel", "https://t.me/oldchannel")
+    assert store.enabled
+    assert store.configured_chats == [old]
+    assert store.required_chats == [old]
+
+    second = RequiredChat(-100999, "Second", "https://t.me/second")
+    store.add_chat(second, enable=False)
+    assert set(store.configured_chats) == {old, second}
+
     store.disable()
     reloaded = ForceJoinStore(path)
-    assert reloaded.required_chat is None
-    assert reloaded.configured_chat == store.configured_chat
+    assert not reloaded.enabled
+    assert set(reloaded.configured_chats) == {old, second}
+
     reloaded.enable()
-    assert ForceJoinStore(path).required_chat == store.configured_chat
+    assert set(ForceJoinStore(path).required_chats) == {old, second}
+
+    assert reloaded.remove_chat(-100777)
+    assert reloaded.configured_chats == [second]
+
