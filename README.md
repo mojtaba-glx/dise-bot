@@ -79,6 +79,7 @@ cd dise-bot
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+python -m pip install "telethon==1.45.0"
 python -m pip install --no-deps .
 [ -e .env ] || cp .env.example .env
 chmod 600 .env
@@ -107,6 +108,7 @@ If you use [uv](https://docs.astral.sh/uv/), the equivalent setup is:
 
 ```bash
 uv sync --locked
+uv pip install "telethon==1.45.0"
 [ -e .env ] || cp .env.example .env
 # Edit .env before continuing.
 uv run dise-bot --check
