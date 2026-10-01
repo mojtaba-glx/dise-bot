@@ -19,6 +19,7 @@ def dice_keyboard(*, group_controls: bool = False, manager: bool = False) -> Rep
         rows,
         resize_keyboard=True,
         is_persistent=True,
+        selective=group_controls,
         input_field_placeholder="Choose your dice…",
     )
 
@@ -42,6 +43,7 @@ def ablity_keyboard(*, group_controls: bool = False) -> ReplyKeyboardMarkup:
         rows,
         resize_keyboard=True,
         is_persistent=True,
+        selective=group_controls,
         input_field_placeholder="ABLITY",
     )
 
@@ -61,5 +63,6 @@ def defense_keyboard(*, group_controls: bool = False) -> ReplyKeyboardMarkup:
         rows,
         resize_keyboard=True,
         is_persistent=True,
+        selective=group_controls,
         input_field_placeholder="Choose your defense…",
     )
