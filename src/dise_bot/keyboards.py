@@ -12,7 +12,7 @@ def dice_keyboard(*, group_controls: bool = False, manager: bool = False) -> Rep
         [messages.GREEN_BUTTON],
     ]
     if group_controls:
-        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON])
+        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON, messages.STATUS_BUTTON])
     if manager and not group_controls:
         rows.append([messages.PANEL_BUTTON])
     return ReplyKeyboardMarkup(
@@ -37,7 +37,7 @@ def panel_keyboard(*, owner: bool) -> ReplyKeyboardMarkup:
 def ablity_keyboard(*, group_controls: bool = False) -> ReplyKeyboardMarkup:
     rows = [[messages.BACK_BUTTON]]
     if group_controls:
-        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON])
+        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON, messages.STATUS_BUTTON])
     return ReplyKeyboardMarkup(
         rows,
         resize_keyboard=True,
@@ -56,7 +56,7 @@ def defense_keyboard(*, group_controls: bool = False) -> ReplyKeyboardMarkup:
         [messages.BACK_BUTTON],
     ]
     if group_controls:
-        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON])
+        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON, messages.STATUS_BUTTON])
     return ReplyKeyboardMarkup(
         rows,
         resize_keyboard=True,
