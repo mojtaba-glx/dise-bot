@@ -57,6 +57,8 @@ class ForceJoinStore:
                         "VALUES (1, ?)",
                         (legacy[3],),
                     )
+                    # The legacy row must not resurrect a channel removed later.
+                    connection.execute("DELETE FROM force_join WHERE singleton = 1")
                 else:
                     connection.execute(
                         "INSERT OR IGNORE INTO force_join_settings (singleton, enabled) "
