@@ -102,7 +102,7 @@ async def set_commands(application: Application) -> None:
                 BotCommand("panel", "Open the bot management panel"),
                 BotCommand("reply", "Manage group auto replies"),
                 BotCommand("join", "Manage required channel membership"),
-                BotCommand("tag", "Mention known members on a replied message"),
+                BotCommand("tag", "Mention all group members on a replied message"),
             ]
         )
     except TelegramError as error:
@@ -121,6 +121,7 @@ def build_application(settings: Settings) -> Application:
         .post_init(set_commands)
         .build()
     )
+    application.bot_data["settings"] = settings
     application.bot_data["activation_store"] = ActivationStore(settings.state_db_path)
     application.bot_data["management_store"] = ManagementStore(
         settings.state_db_path, settings.owner_user_id
