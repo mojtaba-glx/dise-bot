@@ -30,7 +30,7 @@ class FakeTelegram:
     send_gate: asyncio.Event | None = None
     two_sends_started: asyncio.Event = field(default_factory=asyncio.Event)
     waiting_sends: int = 0
-    member_statuses: dict[int, str] = field(default_factory=dict)
+    member_statuses: dict[object, str] = field(default_factory=dict)
     bot_status: str = "administrator"
     bot_can_invite: bool = True
     fail_member_check: bool = False
@@ -44,11 +44,17 @@ class FakeTelegram:
         elif method == "setMyCommands":
             result = True
         elif method == "getChat":
-            chat_id = -100888 if params["chat_id"] == -100888 else -100777
+            target = params["chat_id"]
+            if target in (-100888, "-100888"):
+                chat_id, title, username = -100888, "Private required channel", None
+            elif target in (-100999, "-100999", "@secondchannel"):
+                chat_id, title, username = -100999, "Second required channel", "secondchannel"
+            else:
+                chat_id, title, username = -100777, "Required channel", "testchannel"
             result = {
                 "id": chat_id,
                 "type": "channel",
-                "title": "Required channel",
+                "title": title,
                 "accent_color_id": 0,
                 "max_reaction_count": 0,
                 "accepted_gift_types": {
@@ -59,8 +65,8 @@ class FakeTelegram:
                     "gifts_from_channels": False,
                 },
             }
-            if chat_id == -100777:
-                result["username"] = "testchannel"
+            if username:
+                result["username"] = username
         elif method == "getChatMember":
             if self.fail_member_check:
                 raise NetworkError("membership check unavailable")
@@ -68,7 +74,10 @@ class FakeTelegram:
             status = (
                 self.bot_status
                 if user_id == BOT_USER["id"]
-                else self.member_statuses.get(user_id, "left")
+                else self.member_statuses.get(
+                    (params["chat_id"], user_id),
+                    self.member_statuses.get(user_id, "left"),
+                )
             )
             result = {
                 "status": status,
