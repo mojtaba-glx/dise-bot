@@ -18,6 +18,8 @@ class Settings:
     log_level: str = "INFO"
     state_db_path: Path = Path("data/activation.sqlite3")
     owner_user_id: int | None = None
+    telegram_api_id: int | None = None
+    telegram_api_hash: str | None = field(default=None, repr=False)
 
 
 def load_settings(env_file: Path = Path(".env")) -> Settings:
@@ -44,9 +46,21 @@ def load_settings(env_file: Path = Path(".env")) -> Settings:
     if owner_user_id is not None and not 0 < owner_user_id < 2**63:
         raise ConfigurationError("OWNER_USER_ID must be a positive numeric Telegram user ID.")
 
+    raw_api_id = (values.get("TELEGRAM_API_ID") or "").strip()
+    api_hash = (values.get("TELEGRAM_API_HASH") or "").strip() or None
+    if raw_api_id and (not raw_api_id.isascii() or not raw_api_id.isdecimal()):
+        raise ConfigurationError("TELEGRAM_API_ID must be a positive numeric value.")
+    telegram_api_id = int(raw_api_id) if raw_api_id else None
+    if (telegram_api_id is None) != (api_hash is None):
+        raise ConfigurationError(
+            "Set TELEGRAM_API_ID and TELEGRAM_API_HASH together for full /tag member sync."
+        )
+
     return Settings(
         token=token,
         log_level=log_level,
         state_db_path=state_db_path,
         owner_user_id=owner_user_id,
+        telegram_api_id=telegram_api_id,
+        telegram_api_hash=api_hash,
     )
