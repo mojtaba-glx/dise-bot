@@ -35,8 +35,6 @@ def panel_keyboard(*, owner: bool) -> ReplyKeyboardMarkup:
 
 def ablity_keyboard(*, group_controls: bool = False) -> ReplyKeyboardMarkup:
     rows = [[messages.BACK_BUTTON]]
-    if group_controls:
-        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON, messages.STATUS_BUTTON])
     return ReplyKeyboardMarkup(
         rows,
         resize_keyboard=True,
@@ -55,8 +53,6 @@ def defense_keyboard(*, group_controls: bool = False) -> ReplyKeyboardMarkup:
         [messages.REFLECT_BUTTON],
         [messages.BACK_BUTTON],
     ]
-    if group_controls:
-        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON, messages.STATUS_BUTTON])
     return ReplyKeyboardMarkup(
         rows,
         resize_keyboard=True,
