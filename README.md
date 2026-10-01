@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.1.3**
+**Version 1.1.4**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -124,6 +124,8 @@ uv run dise-bot
 | `/defense light 3` | Calculate a tier for an explicit +1 to +9 roll |
 | `/on` | Enable dice for yourself in the current group |
 | `/off` | Disable dice for yourself in the current group |
+| `/status` | Show your own ON/OFF state in the current group |
+| `/version` | Show the running bot version |
 | `/help` | Show the rules and exact odds |
 | `/id` | Show your numeric Telegram user ID |
 | `/panel` | Open the owner/admin menu in a private chat |
@@ -161,7 +163,7 @@ uv run dise-bot
 ### Group activation
 
 Group dice are off for each member until that member sends `/on` in the group.
-The group keyboard includes dedicated `🟢 ON` and `🔴 OFF` buttons; `/on` and `/off` remain supported as commands. `🔴 OFF` stops red, green,
+The group keyboard includes dedicated `🟢 ON`, `🔴 OFF`, and `⚙️ STATUS` buttons; `/on`, `/off`, and `/status` remain supported as commands. `/start` also shows the requesting member’s current ON/OFF state. The ON/OFF buttons are handled before normal text routing so `🔴 OFF` immediately disables that member. `🔴 OFF` stops red, green,
 ranked defense, cursed aura, absolute, and reflect rolls from that user in that
 group; it does not change any other member's choice or that user's choice in
 another group. No roll is generated and no reply is sent for a disabled user's
