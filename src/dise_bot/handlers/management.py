@@ -83,7 +83,7 @@ async def settings_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         admin_i18n.text(
             language,
             "settings_title",
-            language=admin_i18n.language_name(language),
+            language_name=admin_i18n.language_name(language),
         ),
         reply_markup=admin_settings_keyboard(language=language),
     )
