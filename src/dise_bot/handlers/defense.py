@@ -1,6 +1,6 @@
 """Stateless ranked-defense handlers, safe for concurrent button presses."""
 
-from telegram import Update
+from telegram import ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes
 
 from dise_bot import messages
@@ -30,9 +30,17 @@ USAGE = (
 
 async def show_defense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_message:
+        if is_group(update) and not can_roll(update, context):
+            await update.effective_message.reply_text(
+                messages.PANEL_OFF_MESSAGE,
+                reply_markup=ReplyKeyboardRemove(selective=True),
+                do_quote=True,
+            )
+            return
         await update.effective_message.reply_text(
             messages.GROUP_DEFENSE_MENU if is_group(update) else messages.DEFENSE_MENU,
             reply_markup=defense_keyboard(group_controls=is_group(update)),
+            do_quote=is_group(update),
         )
 
 
@@ -51,6 +59,7 @@ async def _send_result(
             f"🎲 Roll: +{positive_roll}\n"
             f"{result_line}",
             reply_markup=defense_keyboard(group_controls=is_group(update)),
+            do_quote=is_group(update),
         )
 
 
@@ -81,7 +90,9 @@ async def defense_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         calculate_defense(tier, positive_roll)
     except ValueError:
         await message.reply_text(
-            USAGE, reply_markup=defense_keyboard(group_controls=is_group(update))
+            USAGE,
+            reply_markup=defense_keyboard(group_controls=is_group(update)),
+            do_quote=is_group(update),
         )
         return
     await _send_result(update, tier, positive_roll, allow_percent=False)
