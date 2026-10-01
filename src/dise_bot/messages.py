@@ -66,7 +66,7 @@ HELP = (
     "/off — Disable your dice in a group\n"
     "/status — Show your dice status in this group\n"
     "/version — Show the running bot version\n"
-    "/tag — Reply to a message and mention known group members (admins only)\n"
+    "/tag — Reply to a message and mention all current group members (admins only)\n"
     "/help — Show this guide"
 )
 
