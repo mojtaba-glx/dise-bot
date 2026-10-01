@@ -78,6 +78,41 @@ def user_join_prompt(chats: list[RequiredChat]) -> str:
     )
 
 
+def is_admin_management_interaction(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> bool:
+    message = update.effective_message
+    user = update.effective_user
+    if message is None or user is None or not manager_store(context).is_manager(user.id):
+        return False
+    text = message.text or ""
+    admin_labels = {
+        label
+        for language in admin_i18n.SUPPORTED_LANGUAGES
+        for label in admin_i18n.BUTTONS[language].values()
+    } | set(admin_i18n.LANGUAGE_BUTTONS.values())
+    if text in admin_labels:
+        return True
+    if not text.startswith("/"):
+        return False
+    command = text.split(maxsplit=1)[0][1:]
+    name, separator, recipient = command.partition("@")
+    if separator and recipient.casefold() != (context.bot.username or "").casefold():
+        return False
+    return name.casefold() in {
+        "id",
+        "panel",
+        "ban",
+        "unban",
+        "admin",
+        "unadmin",
+        "reply",
+        "join",
+        "tag",
+    }
+
+
 def is_bot_interaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     message, chat = update.effective_message, update.effective_chat
     if message is None or chat is None or not message.text:
@@ -153,8 +188,7 @@ async def force_join_gate(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user, message = update.effective_user, update.message
     if not chats or user is None or message is None or user.is_bot:
         return
-    management = manager_store(context)
-    if management.is_manager(user.id):
+    if is_admin_management_interaction(update, context):
         return
     words = (message.text or "").split(maxsplit=1)
     first_word = words[0] if words else ""
@@ -180,16 +214,12 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not chats:
         await query.answer("Membership is no longer required.", show_alert=True)
         return
-    management = manager_store(context)
-    if management.is_manager(user.id):
-        verified, missing = True, []
-    else:
-        verified, missing = await verify_all_required(
-            context,
-            chats,
-            user.id,
-            fresh=True,
-        )
+    verified, missing = await verify_all_required(
+        context,
+        chats,
+        user.id,
+        fresh=True,
+    )
     if verified is None:
         await query.answer("Could not verify membership. Try again later.", show_alert=True)
     elif verified:
@@ -414,6 +444,7 @@ async def join_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await message.reply_text(admin_i18n.text(language, "join_only_private"))
         return
 
+    context.user_data.pop("pending_force_join_action", None)
     args = context.args or []
     store = join_store(context)
     if not args:
