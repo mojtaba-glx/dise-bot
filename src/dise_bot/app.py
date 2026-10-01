@@ -64,6 +64,8 @@ from dise_bot.messages import (
     DEFENSE_BUTTON,
     FORCE_JOIN_BUTTON,
     GREEN_BUTTON,
+    OFF_BUTTON,
+    ON_BUTTON,
     PANEL_BUTTON,
     RED_BUTTON,
     REFLECT_BUTTON,
@@ -129,6 +131,19 @@ def build_application(settings: Settings) -> Application:
     )
     application.add_handler(
         MessageHandler(filters.Regex(r"\A/off\Z") & ~filters.COMMAND, off_command)
+    )
+    # Dedicated reply-keyboard labels do not rely on Telegram command entities.
+    application.add_handler(
+        MessageHandler(
+            filters.ChatType.GROUPS & filters.TEXT & filters.Regex(rf"\A{re.escape(ON_BUTTON)}\Z"),
+            on_command,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.ChatType.GROUPS & filters.TEXT & filters.Regex(rf"\A{re.escape(OFF_BUTTON)}\Z"),
+            off_command,
+        )
     )
     application.add_handler(CommandHandler("red", red_command))
     application.add_handler(CommandHandler("green", green_command))

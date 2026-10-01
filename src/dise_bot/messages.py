@@ -4,6 +4,8 @@ RED_BUTTON = "🎲🔴 ᎠᏆᏟᎬ 🔴🎲"
 GREEN_BUTTON = "🎲🟢 ᎠᏆᏟᎬ 🟢🎲"
 DEFENSE_BUTTON = "🛡️ ᎠᎬᎰᎬᏁᏚᎬ"
 ABLITY_BUTTON = "✨ ᎪᏴᏞᏆᎢᎩ"
+ON_BUTTON = "🟢 ON"
+OFF_BUTTON = "🔴 OFF"
 PANEL_BUTTON = "👑 ᏢᎪᏁᎬᏞ"
 BAN_BUTTON = "🚫 Ban user"
 UNBAN_BUTTON = "✅ Unban user"
@@ -37,14 +39,14 @@ WELCOME = (
     "🟢 Green: +1 to +10\n\n"
     "Tap a dice to roll or open a menu."
 )
-GROUP_WELCOME = WELCOME + "\n\nUse /on to enable your dice in this group."
+GROUP_WELCOME = WELCOME + "\n\nTap 🟢 ON or use /on to enable your dice in this group."
 
 ABLITY_MENU = "✨ ᎪᏴᏞᏆᎢᎩ\n━━━━━━━━━━━━━━\nAbility options will be added here."
 
 DEFENSE_MENU = (
     "🛡️ ᎠᎬᎰᎬᏁᏚᎬ\n━━━━━━━━━━━━━━\nChoose a tier to get your defense.\n\n25% · 50% · 75% · 100%"
 )
-GROUP_DEFENSE_MENU = DEFENSE_MENU + "\n\nUse /on to enable your rolls in this group."
+GROUP_DEFENSE_MENU = DEFENSE_MENU + "\n\nTap 🟢 ON or use /on to enable your rolls in this group."
 
 HELP = (
     "🎲 ᎠᏆᏟᎬ · How to play\n\n"

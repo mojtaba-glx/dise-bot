@@ -276,8 +276,8 @@ async def test_ablity_screen_keeps_group_switches_available(bot_app):
     await app.process_update(incoming(app, messages.ABLITY_BUTTON, chat_type="group"))
     assert api.sent[-1]["text"] == messages.ABLITY_MENU
     assert api.sent[-1]["reply_markup"]["keyboard"][-1] == [
-        {"text": "/on"},
-        {"text": "/off"},
+        {"text": messages.ON_BUTTON},
+        {"text": messages.OFF_BUTTON},
     ]
 
 
@@ -499,8 +499,8 @@ async def test_on_and_off_change_only_one_user_in_one_group(bot_app):
     assert not store.is_enabled(-100456, 11)
     assert api.sent[-1]["text"] == messages.ON_MESSAGE
     assert api.sent[-1]["reply_markup"]["keyboard"][-1] == [
-        {"text": "/on"},
-        {"text": "/off"},
+        {"text": messages.ON_BUTTON},
+        {"text": messages.OFF_BUTTON},
     ]
 
     await app.process_update(incoming(app, "/on", user_id=12, chat_type="group"))
@@ -560,6 +560,24 @@ async def test_slash_keyboard_buttons_work_without_command_entities(bot_app):
     await app.process_update(incoming(app, "/on", chat_type="group", command_entities=False))
     assert api.sent[-1]["text"] == messages.ON_MESSAGE
     await app.process_update(incoming(app, "/off", chat_type="group", command_entities=False))
+    assert api.sent[-1]["text"] == messages.OFF_MESSAGE
+
+
+async def test_dedicated_on_off_buttons_work_for_the_clicking_user(bot_app):
+    app, api = bot_app
+    store = app.bot_data["activation_store"]
+
+    await app.process_update(
+        incoming(app, messages.ON_BUTTON, user_id=51, chat_type="group", command_entities=False)
+    )
+    assert store.is_enabled(-100123, 51)
+    assert not store.is_enabled(-100123, 52)
+    assert api.sent[-1]["text"] == messages.ON_MESSAGE
+
+    await app.process_update(
+        incoming(app, messages.OFF_BUTTON, user_id=51, chat_type="group", command_entities=False)
+    )
+    assert not store.is_enabled(-100123, 51)
     assert api.sent[-1]["text"] == messages.OFF_MESSAGE
 
 
