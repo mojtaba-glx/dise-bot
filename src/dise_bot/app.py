@@ -19,6 +19,7 @@ from telegram.ext import (
     filters,
 )
 
+from dise_bot import admin_i18n
 from dise_bot.config import ConfigurationError, Settings, load_settings
 from dise_bot.handlers.absolute import absolute_button
 from dise_bot.handlers.activation import off_command, on_command
@@ -64,19 +65,12 @@ from dise_bot.logging_config import configure_logging
 from dise_bot.messages import (
     ABLITY_BUTTON,
     ABSOLUTE_BUTTON,
-    ADD_ADMIN_BUTTON,
-    AUTO_REPLIES_BUTTON,
     BACK_BUTTON,
-    BAN_BUTTON,
     CURSED_AURA_BUTTON,
     DEFENSE_BUTTON,
-    FORCE_JOIN_BUTTON,
     GREEN_BUTTON,
-    PANEL_BUTTON,
     RED_BUTTON,
     REFLECT_BUTTON,
-    REMOVE_ADMIN_BUTTON,
-    UNBAN_BUTTON,
 )
 from dise_bot.services.activation import ActivationStore
 from dise_bot.services.force_join import ForceJoinStore
@@ -101,7 +95,7 @@ async def set_commands(application: Application) -> None:
                 BotCommand("id", "Show your Telegram user ID"),
                 BotCommand("panel", "Open the bot management panel"),
                 BotCommand("reply", "Manage group auto replies"),
-                BotCommand("join", "Manage required channel membership"),
+                BotCommand("join", "Manage required membership channels"),
                 BotCommand("tag", "Mention all group members on a replied message"),
             ]
         )
@@ -157,21 +151,48 @@ def build_application(settings: Settings) -> Application:
     application.add_handler(CommandHandler("reply", reply_command))
     application.add_handler(CommandHandler("join", join_command))
     application.add_handler(CommandHandler("tag", tag_command))
-    panel_labels = (
-        PANEL_BUTTON,
-        BAN_BUTTON,
-        UNBAN_BUTTON,
-        ADD_ADMIN_BUTTON,
-        REMOVE_ADMIN_BUTTON,
-        AUTO_REPLIES_BUTTON,
+    panel_keys = {
+        "panel",
+        "ban",
+        "unban",
+        "add_admin",
+        "remove_admin",
+        "auto_replies",
+        "settings",
+        "language",
+        "back",
+    }
+    panel_labels = {
+        label
+        for key in panel_keys
+        for label in admin_i18n.button_labels(key)
+    } | set(admin_i18n.LANGUAGE_BUTTONS.values())
+    panel_pattern = (
+        r"\A(?:" + "|".join(re.escape(label) for label in sorted(panel_labels)) + r")\Z"
     )
-    panel_pattern = r"\A(?:" + "|".join(re.escape(label) for label in panel_labels) + r")\Z"
     application.add_handler(
         MessageHandler(filters.ChatType.PRIVATE & filters.Regex(panel_pattern), panel_button)
     )
+
+    force_join_keys = {
+        "force_join",
+        "join_on",
+        "join_off",
+        "join_add",
+        "join_remove",
+        "join_list",
+    }
+    force_join_labels = {
+        label
+        for key in force_join_keys
+        for label in admin_i18n.button_labels(key)
+    }
+    force_join_pattern = (
+        r"\A(?:" + "|".join(re.escape(label) for label in sorted(force_join_labels)) + r")\Z"
+    )
     application.add_handler(
         MessageHandler(
-            filters.ChatType.PRIVATE & filters.Regex(rf"\A{re.escape(FORCE_JOIN_BUTTON)}\Z"),
+            filters.ChatType.PRIVATE & filters.Regex(force_join_pattern),
             join_panel_button,
         )
     )
