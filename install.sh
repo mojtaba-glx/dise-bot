@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Interactive one-command setup for a server with Docker Compose.
+# Interactive setup from an existing checkout.
 set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
@@ -10,9 +10,14 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
     exit 1
 fi
 
+docker_command=(docker)
 if ! docker info >/dev/null 2>&1; then
-    echo "Cannot connect to Docker. Start Docker or use an account with Docker access."
-    exit 1
+    if command -v sudo >/dev/null 2>&1 && sudo docker info >/dev/null 2>&1; then
+        docker_command=(sudo docker)
+    else
+        echo "Cannot connect to Docker. Start Docker and check your account's Docker access."
+        exit 1
+    fi
 fi
 
 if [ ! -e .env ]; then
@@ -43,6 +48,7 @@ else
     echo "Using the existing .env without changing it."
 fi
 
-docker compose up --build -d
-docker compose ps
-echo "Setup finished. Use ./bot.sh to view logs or manage the bot."
+"${docker_command[@]}" compose up --build -d
+"${docker_command[@]}" compose ps
+echo "Container setup finished. Telegram connectivity and token validity have not been verified."
+echo "Use ./bot.sh in this directory to inspect status and logs."

@@ -1,5 +1,7 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
+**Version 1.1.0**
+
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
 `+1` through `+10`. The duplicated values in the original code are intentional
@@ -25,9 +27,23 @@ The lettering uses the exact Unicode characters from the original code.
 Telegram controls its fonts and keyboard layout; appearance can vary by client.
 Help text uses regular English for readability.
 
-## Quick start
+## One-command server installation
 
-On a Linux server with Docker and the Compose plugin installed, run:
+On Ubuntu or Debian, run this command as your regular user from any directory:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/mojtaba-glx/dise-bot/main/bootstrap.sh)
+```
+
+The script installs Git, Docker Engine, and the Docker Compose plugin if needed,
+clones the repository to `~/dise-bot`, then privately prompts for the BotFather
+token and optionally your numeric Telegram owner ID. It asks for your sudo
+password only when system packages need installation. Run the same command to
+update an existing clean checkout. The bot's `.env` and saved data are retained;
+the token is requested only on first setup. `curl` is needed to fetch the script.
+To use another location, set `DISE_BOT_DIR` before the command.
+
+If you already cloned the repository and have Docker Compose, run:
 
 ```bash
 cd dise-bot
@@ -38,8 +54,11 @@ The installer asks privately for a token from [@BotFather](https://t.me/BotFathe
 and optionally your numeric Telegram owner ID. It creates `.env` only when that
 file does not already exist, starts the bot in Docker, and leaves all existing
 settings untouched. Use `./bot.sh` afterward for status, logs, restart, and stop.
-The installer does not install Docker itself. See the [Docker installation
-guide](https://docs.docker.com/engine/install/) if Docker Compose is missing.
+The in-repository `install.sh` expects Docker Compose to be installed. See the
+[Docker installation guide](https://docs.docker.com/engine/install/) for other
+Linux distributions. Container setup does not verify that your server can reach
+Telegram; outbound HTTPS to `api.telegram.org` is required. Check logs with
+`cd ~/dise-bot && ./bot.sh` if the bot does not respond.
 
 For a manual Python setup, use Python 3.11 or newer. Python 3.12 is the default
 development version.

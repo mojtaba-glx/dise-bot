@@ -11,15 +11,17 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
-if docker compose version >/dev/null 2>&1; then
-    COMPOSE="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE="docker-compose"
-    echo "WARNING: using legacy docker-compose v1, which is deprecated and fails"
-    echo "with newer Docker engines (e.g. KeyError: 'ContainerConfig')."
-    echo "Install the v2 plugin instead: sudo apt-get install -y docker-compose-plugin"
+if ! docker compose version >/dev/null 2>&1; then
+    echo "The Docker Compose plugin is required."
+    exit 1
+fi
+
+if docker info >/dev/null 2>&1; then
+    compose=(docker compose)
+elif command -v sudo >/dev/null 2>&1 && sudo docker info >/dev/null 2>&1; then
+    compose=(sudo docker compose)
 else
-    echo "Docker Compose is not available (need 'docker compose' or 'docker-compose')."
+    echo "Cannot connect to Docker. Start Docker and check your account's Docker access."
     exit 1
 fi
 
@@ -35,36 +37,29 @@ need_env() {
 
 do_start() {
     need_env || return
-    # shellcheck disable=SC2086
-    $COMPOSE up --build -d
+    "${compose[@]}" up --build -d
     echo "--- status ---"
-    # shellcheck disable=SC2086
-    $COMPOSE ps
+    "${compose[@]}" ps
 }
 
 do_restart() {
     need_env || return
-    # shellcheck disable=SC2086
-    $COMPOSE restart
+    "${compose[@]}" restart
     echo "--- status ---"
-    # shellcheck disable=SC2086
-    $COMPOSE ps
+    "${compose[@]}" ps
 }
 
 do_stop() {
-    # shellcheck disable=SC2086
-    $COMPOSE stop
+    "${compose[@]}" stop
 }
 
 do_status() {
-    # shellcheck disable=SC2086
-    $COMPOSE ps
+    "${compose[@]}" ps
 }
 
 do_logs() {
     echo "Showing logs (Ctrl+C to go back to the menu)..."
-    # shellcheck disable=SC2086
-    $COMPOSE logs -f --tail=100
+    "${compose[@]}" logs -f --tail=100
 }
 
 while true; do
