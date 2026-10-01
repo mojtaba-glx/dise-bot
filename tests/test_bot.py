@@ -1187,4 +1187,5 @@ def test_existing_force_join_database_is_migrated_to_multi_channel_store(tmp_pat
 
     assert reloaded.remove_chat(-100777)
     assert reloaded.configured_chats == [second]
+    assert ForceJoinStore(path).configured_chats == [second]
 
