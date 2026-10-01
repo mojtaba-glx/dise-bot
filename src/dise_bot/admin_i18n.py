@@ -107,7 +107,9 @@ TEXTS = {
         "join_added": "✅ Added: {title} ({chat_id})",
         "join_removed": "✅ Removed required channel {chat_id}.",
         "join_remove_missing": "No required channel with ID {chat_id}.",
-        "join_verify_error": "Could not verify every configured channel. Check bot admin permissions.",
+        "join_verify_error": (
+            "Could not verify every configured channel. Check bot admin permissions."
+        ),
         "join_bad_chat": "Choose a channel or supergroup.",
         "join_make_admin": "Make this bot an admin in that chat, then retry.",
         "join_private_link": (
