@@ -96,5 +96,5 @@ async def tag_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await target.reply_text(
             header + mentions,
             parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True,
+            do_quote=True,
         )
