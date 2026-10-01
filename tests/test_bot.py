@@ -740,6 +740,52 @@ async def test_owner_panel_and_private_id(bot_app):
     assert api.sent[-1]["text"] == "Access denied."
 
 
+async def test_owner_settings_button_routes_and_persian_language_persists(bot_app, tmp_path):
+    app, api = bot_app
+    store = app.bot_data["management_store"]
+
+    await app.process_update(incoming(app, "/panel", user_id=1))
+    await app.process_update(
+        incoming(app, admin_i18n.button("en", "settings"), user_id=1)
+    )
+    assert api.sent[-1]["text"].startswith("⚙️ Admin settings")
+    settings_labels = [
+        button["text"]
+        for row in api.sent[-1]["reply_markup"]["keyboard"]
+        for button in row
+    ]
+    assert admin_i18n.LANGUAGE_BUTTONS["fa"] in settings_labels
+    assert admin_i18n.LANGUAGE_BUTTONS["en"] in settings_labels
+
+    await app.process_update(
+        incoming(app, admin_i18n.LANGUAGE_BUTTONS["fa"], user_id=1)
+    )
+    assert store.language_for(1) == "fa"
+    assert "زبان فعلی" in api.sent[-1]["text"]
+    assert ManagementStore(
+        tmp_path / "activation.sqlite3",
+        owner_user_id=1,
+    ).language_for(1) == "fa"
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "back"), user_id=1)
+    )
+    assert "پنل مدیریت" in api.sent[-1]["text"]
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "settings"), user_id=1)
+    )
+    assert "تنظیمات ادمین" in api.sent[-1]["text"]
+
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "back"), user_id=1)
+    )
+    await app.process_update(
+        incoming(app, admin_i18n.button("fa", "force_join"), user_id=1)
+    )
+    assert "عضویت اجباری" in api.sent[-1]["text"]
+
+
 async def test_owner_and_admin_permissions_and_global_ban(bot_app, tmp_path):
     app, api = bot_app
     store = app.bot_data["management_store"]
