@@ -1,0 +1,62 @@
+name: publish-release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("src/dise_bot/__init__.py").read_text()
+          match = re.search(r'__version__\s*=\s*"([^"]+)"', text)
+          if not match:
+              raise SystemExit("Could not read __version__")
+          print(match.group(1))
+          PY
+          )"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists; nothing to publish."
+            exit 0
+          fi
+
+          gh release create "$TAG"             --target "$GITHUB_SHA"             --title "$TAG — Stable"             --latest             --notes-file - <<'EOF'
+          Stable release.
+
+          Highlights:
+          - Fixed the admin Settings button and Persian/English language switching.
+          - Unified private admin button routing to prevent handler conflicts.
+          - Added persistent per-admin Persian/English preferences.
+          - Added multi-channel required membership with ON/OFF controls.
+          - Added channel add/remove/list controls in the admin panel.
+          - Improved required-membership verification across multiple channels.
+          - Improved performance with in-memory hot-state caching and reduced SQLite writes.
+          - Enabled SQLite WAL/NORMAL mode for better concurrent access.
+          - Parallelized multi-channel membership checks.
+          - Preserved existing dice/game behavior and probabilities.
+          - GitHub CI passes Ruff and 144 pytest tests.
+          EOF
