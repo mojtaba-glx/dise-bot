@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dise-bot"
-version = "1.1.5"
+version = "1.1.6"
 description = "A Telegram dice bot with two intentionally weighted dice."
 readme = "README.md"
 requires-python = ">=3.11"
