@@ -37,6 +37,10 @@ class ManagementStore:
                     "display_name TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, "
                     "PRIMARY KEY (chat_id, user_id))"
                 )
+                connection.execute(
+                    "CREATE TABLE IF NOT EXISTS admin_preferences ("
+                    "user_id INTEGER PRIMARY KEY, language TEXT NOT NULL DEFAULT 'en')"
+                )
             self._banned = {
                 row[0] for row in connection.execute("SELECT user_id FROM banned_users")
             }
@@ -47,6 +51,24 @@ class ManagementStore:
                     "SELECT chat_id, trigger, response FROM auto_replies"
                 )
             }
+
+    def language_for(self, user_id: int) -> str:
+        with closing(sqlite3.connect(self._path, timeout=5)) as connection:
+            row = connection.execute(
+                "SELECT language FROM admin_preferences WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+        return row[0] if row and row[0] in {"en", "fa"} else "en"
+
+    def set_language(self, user_id: int, language: str) -> None:
+        if language not in {"en", "fa"}:
+            raise ValueError("Unsupported admin language.")
+        with closing(sqlite3.connect(self._path, timeout=5)) as connection, connection:
+            connection.execute(
+                "INSERT INTO admin_preferences (user_id, language) VALUES (?, ?) "
+                "ON CONFLICT(user_id) DO UPDATE SET language = excluded.language",
+                (user_id, language),
+            )
 
     def is_owner(self, user_id: int) -> bool:
         return self.owner_user_id is not None and user_id == self.owner_user_id
