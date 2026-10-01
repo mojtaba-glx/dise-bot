@@ -10,7 +10,7 @@ TOKEN = "123456789:TEST_TOKEN_FOR_OFFLINE_TESTS_ONLY"
 
 @pytest.fixture(autouse=True)
 def clean_environment(monkeypatch):
-    for name in ("BOT_TOKEN", "COOLDOWN_SECONDS", "LOG_LEVEL", "STATE_DB_PATH", "OWNER_USER_ID"):
+    for name in ("BOT_TOKEN", "COOLDOWN_SECONDS", "LOG_LEVEL", "STATE_DB_PATH", "OWNER_USER_ID", "TELEGRAM_API_ID", "TELEGRAM_API_HASH"):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -67,6 +67,30 @@ def test_owner_id_can_be_configured(tmp_path, monkeypatch):
     monkeypatch.setenv("BOT_TOKEN", TOKEN)
     monkeypatch.setenv("OWNER_USER_ID", "12345")
     assert load_settings(tmp_path / ".env").owner_user_id == 12345
+
+
+def test_mtproto_credentials_can_be_configured(tmp_path, monkeypatch):
+    monkeypatch.setenv("BOT_TOKEN", TOKEN)
+    monkeypatch.setenv("TELEGRAM_API_ID", "123456")
+    monkeypatch.setenv("TELEGRAM_API_HASH", "0123456789abcdef0123456789abcdef")
+    settings = load_settings(tmp_path / ".env")
+    assert settings.telegram_api_id == 123456
+    assert settings.telegram_api_hash == "0123456789abcdef0123456789abcdef"
+    assert settings.telegram_api_hash not in repr(settings)
+
+
+@pytest.mark.parametrize(
+    ("api_id", "api_hash"),
+    [("123456", ""), ("", "abcdef"), ("abc", "abcdef")],
+)
+def test_invalid_or_partial_mtproto_credentials_are_rejected(
+    tmp_path, monkeypatch, api_id, api_hash
+):
+    monkeypatch.setenv("BOT_TOKEN", TOKEN)
+    monkeypatch.setenv("TELEGRAM_API_ID", api_id)
+    monkeypatch.setenv("TELEGRAM_API_HASH", api_hash)
+    with pytest.raises(ConfigurationError, match="TELEGRAM_API"):
+        load_settings(tmp_path / ".env")
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "abc", "۱۲۳", str(2**63)])
