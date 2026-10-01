@@ -11,8 +11,6 @@ def dice_keyboard(*, group_controls: bool = False, manager: bool = False) -> Rep
         [messages.RED_BUTTON],
         [messages.GREEN_BUTTON],
     ]
-    if group_controls:
-        rows.append([messages.ON_BUTTON, messages.OFF_BUTTON, messages.STATUS_BUTTON])
     if manager and not group_controls:
         rows.append([messages.PANEL_BUTTON])
     return ReplyKeyboardMarkup(
