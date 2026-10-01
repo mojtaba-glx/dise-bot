@@ -1,14 +1,16 @@
 """Track known group members and mention them from a replied /tag command."""
 
-from html import escape
+import asyncio
 
-from telegram import Chat, Update
-from telegram.constants import ChatMemberStatus, ParseMode
+from telegram import Chat, MessageEntity, Update, User
+from telegram.constants import ChatMemberStatus
 from telegram.ext import ContextTypes
 
 from dise_bot.services.management import ManagementStore
 
-MAX_MENTIONS_PER_MESSAGE = 30
+MENTIONS_PER_MESSAGE = 3
+SEND_DELAY_SECONDS = 1.0
+SEPARATOR_TEXT = "⏳ ادامه تگ اعضا..."
 ACTIVE_STATUSES = {
     ChatMemberStatus.OWNER,
     ChatMemberStatus.ADMINISTRATOR,
@@ -57,8 +59,31 @@ async def remember_group_members(update: Update, context: ContextTypes.DEFAULT_T
         _remember_user(store, chat.id, member.user, active=active)
 
 
-def _mention(user_id: int, display_name: str) -> str:
-    return f'<a href="tg://user?id={user_id}">{escape(display_name)}</a>'
+def _mention_payload(batch: list[tuple[int, str]]) -> tuple[str, list[MessageEntity]]:
+    prefix = "🔔 "
+    parts: list[str] = []
+    entities: list[MessageEntity] = []
+    cursor = len(prefix)
+
+    for index, (user_id, display_name) in enumerate(batch):
+        if index:
+            separator = " · "
+            parts.append(separator)
+            cursor += len(separator)
+        label = display_name or str(user_id)
+        parts.append(label)
+        entities.append(
+            MessageEntity(
+                type=MessageEntity.TEXT_MENTION,
+                offset=cursor,
+                length=len(label),
+                user=User(id=user_id, is_bot=False, first_name=label),
+            )
+        )
+        cursor += len(label)
+
+    text = prefix + "".join(parts)
+    return text, list(MessageEntity.adjust_message_entities_to_utf_16(text, entities))
 
 
 async def tag_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -87,14 +112,20 @@ async def tag_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     target = message.reply_to_message
     total = len(members)
-    for offset in range(0, total, MAX_MENTIONS_PER_MESSAGE):
-        batch = members[offset : offset + MAX_MENTIONS_PER_MESSAGE]
-        mentions = " ".join(_mention(user_id, name) for user_id, name in batch)
-        part = offset // MAX_MENTIONS_PER_MESSAGE + 1
-        parts = (total + MAX_MENTIONS_PER_MESSAGE - 1) // MAX_MENTIONS_PER_MESSAGE
-        header = f"🔔 Members ({part}/{parts})\n" if parts > 1 else "🔔 Members\n"
+    batches = [
+        members[offset : offset + MENTIONS_PER_MESSAGE]
+        for offset in range(0, total, MENTIONS_PER_MESSAGE)
+    ]
+
+    for index, batch in enumerate(batches):
+        text, entities = _mention_payload(batch)
         await target.reply_text(
-            header + mentions,
-            parse_mode=ParseMode.HTML,
+            text,
+            entities=entities,
             do_quote=True,
         )
+
+        if index < len(batches) - 1:
+            await asyncio.sleep(SEND_DELAY_SECONDS)
+            await target.reply_text(SEPARATOR_TEXT, do_quote=True)
+            await asyncio.sleep(SEND_DELAY_SECONDS)
