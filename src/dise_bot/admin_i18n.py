@@ -46,6 +46,12 @@ LANGUAGE_BUTTONS = {
     LANG_FA: "🇮🇷 فارسی",
 }
 
+BUTTON_ACTIONS = {
+    label: key
+    for labels in BUTTONS.values()
+    for key, label in labels.items()
+}
+
 TEXTS = {
     LANG_EN: {
         "access_denied": "Access denied.",
