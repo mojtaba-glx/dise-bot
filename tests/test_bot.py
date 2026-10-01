@@ -497,11 +497,14 @@ async def test_on_and_off_change_only_one_user_in_one_group(bot_app):
     assert not store.is_enabled(-100123, 12)
     assert not store.is_enabled(-100456, 11)
     assert api.sent[-1]["text"] == messages.ON_MESSAGE
-    assert api.sent[-1]["reply_markup"]["keyboard"][-1] == [
-        {"text": messages.ON_BUTTON},
-        {"text": messages.OFF_BUTTON},
-        {"text": messages.STATUS_BUTTON},
+    labels = [
+        button["text"]
+        for row in api.sent[-1]["reply_markup"]["keyboard"]
+        for button in row
     ]
+    assert "🟢 ON" not in labels
+    assert "🔴 OFF" not in labels
+    assert "⚙️ STATUS" not in labels
 
     await app.process_update(incoming(app, "/on", user_id=12, chat_type="group"))
     await app.process_update(
