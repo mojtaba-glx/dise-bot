@@ -796,26 +796,27 @@ async def test_group_persian_auto_reply_is_exact_and_group_scoped(bot_app, tmp_p
     assert app.bot_data["management_store"].response_for(-100123, "سلام") is None
 
 
-async def test_tag_uses_real_id_mentions_in_batches_of_three_with_separator_messages(bot_app):
+async def test_tag_uses_full_mtproto_member_list_in_three_member_batches(bot_app):
     app, api = bot_app
     group = {"chat_type": "group", "chat_id": -100123}
-
-    for user_id in (11, 12, 13, 14, 15, 16):
-        await app.process_update(incoming(app, "hello", user_id=user_id, **group))
+    members = [(user_id, f"Member {user_id}") for user_id in (1, 11, 12, 13, 14, 15, 16)]
     before = len(api.sent)
 
-    with patch("dise_bot.handlers.tag.asyncio.sleep") as sleep:
+    with (
+        patch("dise_bot.handlers.tag.fetch_all_members_mtproto", return_value=members) as fetch,
+        patch("dise_bot.handlers.tag.asyncio.sleep") as sleep,
+    ):
         await app.process_update(
             incoming(app, "/tag", user_id=1, reply_to_user=11, **group)
         )
 
+    fetch.assert_awaited_once()
     sent = api.sent[before:]
     assert len(sent) == 5
     assert [item["text"] for item in sent[1::2]] == [
         "⏳ ادامه تگ اعضا...",
         "⏳ ادامه تگ اعضا...",
     ]
-
     tag_messages = sent[0::2]
     assert [len(item["entities"]) for item in tag_messages] == [3, 3, 1]
     mentioned_ids = [
@@ -831,6 +832,18 @@ async def test_tag_uses_real_id_mentions_in_batches_of_three_with_separator_mess
     )
     assert all(item["reply_parameters"]["message_id"] == 999 for item in sent)
     assert sleep.await_count == 4
+
+
+async def test_tag_refuses_partial_local_list_when_mtproto_is_not_configured(bot_app):
+    app, api = bot_app
+    group = {"chat_type": "group", "chat_id": -100123}
+
+    await app.process_update(incoming(app, "hello", user_id=11, **group))
+    await app.process_update(
+        incoming(app, "/tag", user_id=1, reply_to_user=11, **group)
+    )
+    assert "TELEGRAM_API_ID" in api.sent[-1]["text"]
+    assert "TELEGRAM_API_HASH" in api.sent[-1]["text"]
 
 
 async def test_tag_requires_reply_and_manager_permission(bot_app):
