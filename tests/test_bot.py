@@ -581,7 +581,7 @@ async def test_on_command_restores_full_keyboard_after_personal_off(bot_app):
     store = app.bot_data["activation_store"]
 
     await app.process_update(incoming(app, "/on", user_id=71, chat_type="group"))
-    await app.process_update(incoming(app, messages.OFF_BUTTON, user_id=71, chat_type="group"))
+    await app.process_update(incoming(app, "/off", user_id=71, chat_type="group"))
     assert not store.is_enabled(-100123, 71)
     assert api.sent[-1]["reply_markup"] == {"remove_keyboard": True, "selective": True}
 
@@ -590,24 +590,23 @@ async def test_on_command_restores_full_keyboard_after_personal_off(bot_app):
     assert api.sent[-1]["text"] == messages.ON_MESSAGE
     markup = api.sent[-1]["reply_markup"]
     assert markup["selective"] is True
-    assert markup["keyboard"][-1] == [
-        {"text": messages.ON_BUTTON},
-        {"text": messages.OFF_BUTTON},
-        {"text": messages.STATUS_BUTTON},
-    ]
+    labels = [button["text"] for row in markup["keyboard"] for button in row]
+    assert "🟢 ON" not in labels
+    assert "🔴 OFF" not in labels
+    assert "⚙️ STATUS" not in labels
 
 
-async def test_status_button_and_command_show_only_the_clicking_users_state(bot_app):
+async def test_status_command_shows_only_the_requesting_users_state(bot_app):
     app, api = bot_app
 
     await app.process_update(incoming(app, "/status", user_id=51, chat_type="group"))
     assert api.sent[-1]["text"] == messages.STATUS_OFF_MESSAGE
 
-    await app.process_update(incoming(app, messages.ON_BUTTON, user_id=51, chat_type="group"))
-    await app.process_update(incoming(app, messages.STATUS_BUTTON, user_id=51, chat_type="group"))
+    await app.process_update(incoming(app, "/on", user_id=51, chat_type="group"))
+    await app.process_update(incoming(app, "/status", user_id=51, chat_type="group"))
     assert api.sent[-1]["text"] == messages.STATUS_ON_MESSAGE
 
-    await app.process_update(incoming(app, messages.STATUS_BUTTON, user_id=52, chat_type="group"))
+    await app.process_update(incoming(app, "/status", user_id=52, chat_type="group"))
     assert api.sent[-1]["text"] == messages.STATUS_OFF_MESSAGE
 
 
@@ -618,7 +617,7 @@ async def test_private_status_and_version_commands(bot_app):
     assert api.sent[-1]["text"] == messages.PRIVATE_STATUS_MESSAGE
 
     await app.process_update(incoming(app, "/version"))
-    assert api.sent[-1]["text"] == "🎲 ᎠᏆᏟᎬ Bot v1.1.5"
+    assert api.sent[-1]["text"] == "🎲 ᎠᏆᏟᎬ Bot v1.1.6"
 
 
 async def test_one_members_off_does_not_change_another_members_activation(bot_app):
@@ -630,7 +629,7 @@ async def test_one_members_off_does_not_change_another_members_activation(bot_ap
     assert store.is_enabled(-100123, 61)
     assert store.is_enabled(-100123, 62)
 
-    await app.process_update(incoming(app, messages.OFF_BUTTON, user_id=61, chat_type="group"))
+    await app.process_update(incoming(app, "/off", user_id=61, chat_type="group"))
     assert not store.is_enabled(-100123, 61)
     assert store.is_enabled(-100123, 62)
     assert api.sent[-1]["reply_markup"] == {"remove_keyboard": True, "selective": True}
