@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.1.9**
+**Version 1.2.0**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -135,10 +135,11 @@ uv run dise-bot
 | `/admin <ID>` / `/unadmin <ID>` | Owner only: grant or remove bot admin access |
 | `/reply add <text> \| <answer>` | Save an automatic response in the current group |
 | `/reply remove <text>` / `/reply list` | Remove or list this group's automatic responses |
-| `/join set @channelname` | Owner only: require membership in a public channel |
-| `/join set -100...` | Owner only: create a private channel invite link and require membership |
-| `/join on` / `/join off` | Owner only: toggle the saved membership requirement |
-| `/join status` | Owner only: show the saved channel and link |
+| `/join add @channelname` | Owner/admin: add a public required channel |
+| `/join add -100... [invite]` | Owner/admin: add a private required channel |
+| `/join remove <chat_id>` | Owner/admin: remove one required channel |
+| `/join on` / `/join off` | Owner/admin: toggle required membership globally |
+| `/join status` / `/join list` | Owner/admin: show status and all configured channels |
 | `/tag` | Owner/admin: reply to a group message and mention every current member by numeric Telegram ID |
 
 - Both original dice button labels are unchanged, including spaces and emoji.
@@ -236,31 +237,50 @@ See [Telegram's Privacy Mode documentation](https://core.telegram.org/bots/featu
 
 ### Required membership
 
-The owner can open **Required membership** in the private Panel menu, then set
-one public channel with `/join set @channelname`. For a private channel, send
-`/join set -1001234567890`. The bot creates and saves a Telegram invite link
-when it has permission to invite users. Alternatively, append an existing link:
-`/join set -1001234567890 https://t.me/+invitecode`.
+Required membership now supports multiple Telegram channels or supergroups at the same time.
+Open the private admin panel and choose **Required membership / عضویت اجباری**. The panel includes
+buttons for ON, OFF, adding a channel, removing a channel, listing channels, and returning to the
+main admin panel.
 
-The bot must be an administrator in that channel before setup succeeds; Telegram
-only guarantees [membership checks](https://core.telegram.org/bots/api#getchatmember)
-for other users when the bot is an admin. Creating a private link requires the
-appropriate [invite-link permission](https://core.telegram.org/bots/api#createchatinvitelink).
+The same controls remain available as commands:
 
-When enabled, users who have not joined see **Join channel** and **Check
-membership** buttons instead of getting dice rolls or group auto replies. They
-can check immediately after joining, then use the bot. The owner and bot admins
-remain able to manage the bot. `/id` stays available so the owner can discover
-their ID. Membership checks that fail due to a Telegram error deny access until
-verification works again. Verified membership is cached for 30 seconds to keep
-repeated dice taps responsive; leaving the channel can therefore take up to 30
-seconds to affect access. `/join off` pauses the requirement without deleting
-its channel or link. `/join on` checks the bot's channel access and enables it
-again; for a private channel with invite permission, it creates a fresh link.
-`/join status` shows the saved link. The setting survives bot restarts.
+```text
+/join add @channelname
+/join add -1001234567890
+/join add -1001234567890 https://t.me/+invitecode
+/join remove -1001234567890
+/join list
+/join on
+/join off
+/join status
+```
 
-Telegram's built-in animated 🎲 only produces 1–6, so this bot sends custom text
-results for its 1–10 range. See the [Telegram Bot API](https://core.telegram.org/bots/api#senddice).
+The bot must be an administrator in every required channel. Public channels use their public link.
+For private channels, the bot can create an invite link when it has invite permission, or an existing
+`https://t.me/+...` invite link can be supplied.
+
+When required membership is ON, a user must belong to **every configured channel** before normal bot
+features work. The join prompt contains one button per required channel plus **Check membership**.
+Membership is checked live with Telegram and cached briefly for performance. Turning membership OFF
+keeps the channel list saved. Turning it back ON revalidates every configured channel and the bot's
+admin access before enforcing the requirement.
+
+Owner/admin management commands and admin-panel buttons remain accessible even when the manager is not
+a member, so the configuration cannot lock administrators out of the control panel. Normal game use,
+including `/start` and dice actions, is still subject to the membership rule for admins as well; this
+makes it possible to test the rule with an admin account.
+
+Existing single-channel databases are migrated automatically to the multi-channel format. The migrated
+channel is preserved and can later be removed normally without reappearing after a restart.
+
+### Bilingual admin panel
+
+The private admin experience supports **English and Persian** independently for each owner/admin.
+Open **Settings / تنظیمات** and choose **🇬🇧 English** or **🇮🇷 فارسی**. The preference is stored in
+SQLite and survives restarts. Panel buttons, moderation responses, automatic-reply management, and
+required-membership management follow that admin's selected language without changing ordinary users'
+language or another admin's preference.
+
 
 ## Exact probabilities
 
