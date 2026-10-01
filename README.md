@@ -1,6 +1,6 @@
 # dise bot · 🎲 ᎠᏆᏟᎬ
 
-**Version 1.1.6**
+**Version 1.1.7**
 
 A small, modular Telegram bot with an English interface and the original
 `ᎠᏆᏟᎬ` button lettering. Red returns `-1` through `-10`; green returns
@@ -137,6 +137,7 @@ uv run dise-bot
 | `/join set -100...` | Owner only: create a private channel invite link and require membership |
 | `/join on` / `/join off` | Owner only: toggle the saved membership requirement |
 | `/join status` | Owner only: show the saved channel and link |
+| `/tag` | Owner/admin: reply to a group message and mention known members by numeric Telegram ID |
 
 - Both original dice button labels are unchanged, including spaces and emoji.
 - Results stay minimal: a sign and a number, such as `-3` or `+8`.
@@ -159,6 +160,17 @@ uv run dise-bot
   members, adjust the bot's group privacy setting through BotFather.
 - Old pending updates are discarded on startup so offline clicks are not replayed.
 - Run one polling instance per bot token.
+
+### Group tag command
+
+Reply to a message in a group and send `/tag`. Only the configured owner and bot admins can use it.
+The bot replies to the selected message with ID-based mentions using `tg://user?id=...`, so a username
+is not required. Large member lists are split into batches of 30 mentions.
+
+Telegram's Bot API does not provide a method to enumerate every existing group member. The bot therefore
+keeps a persistent registry of members it has observed in group messages and future membership changes.
+Because the bot is an administrator, enabling `chat_member` updates lets it track future joins/leaves,
+but members who were already present and have never produced an observable update may not be known yet.
 
 ### Group activation
 
