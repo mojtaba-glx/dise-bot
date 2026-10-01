@@ -31,6 +31,12 @@ class ManagementStore:
                     "chat_id INTEGER NOT NULL, trigger TEXT NOT NULL, "
                     "response TEXT NOT NULL, PRIMARY KEY (chat_id, trigger))"
                 )
+                connection.execute(
+                    "CREATE TABLE IF NOT EXISTS group_members ("
+                    "chat_id INTEGER NOT NULL, user_id INTEGER NOT NULL, "
+                    "display_name TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, "
+                    "PRIMARY KEY (chat_id, user_id))"
+                )
             self._banned = {
                 row[0] for row in connection.execute("SELECT user_id FROM banned_users")
             }
@@ -121,3 +127,30 @@ class ManagementStore:
 
     def response_for(self, chat_id: int, text: str) -> str | None:
         return self._replies.get((chat_id, normalize_trigger(text)))
+
+
+    def remember_group_member(
+        self, chat_id: int, user_id: int, display_name: str, *, active: bool = True
+    ) -> None:
+        if not -(2**63) < chat_id < 0 or not 0 < user_id < 2**63:
+            return
+        name = re.sub(r"\s+", " ", display_name).strip()[:128] or str(user_id)
+        with closing(sqlite3.connect(self._path, timeout=5)) as connection, connection:
+            connection.execute(
+                "INSERT INTO group_members (chat_id, user_id, display_name, active) "
+                "VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(chat_id, user_id) DO UPDATE SET "
+                "display_name = excluded.display_name, active = excluded.active",
+                (chat_id, user_id, name, 1 if active else 0),
+            )
+
+    def group_members(self, chat_id: int) -> list[tuple[int, str]]:
+        with closing(sqlite3.connect(self._path, timeout=5)) as connection:
+            return [
+                (user_id, display_name)
+                for user_id, display_name in connection.execute(
+                    "SELECT user_id, display_name FROM group_members "
+                    "WHERE chat_id = ? AND active = 1 ORDER BY user_id",
+                    (chat_id,),
+                )
+            ]
