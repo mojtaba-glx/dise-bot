@@ -19,6 +19,7 @@ BUTTONS = {
         "join_on": "🟢 Membership ON",
         "join_off": "🔴 Membership OFF",
         "join_add": "➕ Add channel",
+        "join_remove": "➖ Remove channel",
         "join_list": "📋 Channels",
     },
     LANG_FA: {
@@ -35,6 +36,7 @@ BUTTONS = {
         "join_on": "🟢 روشن کردن عضویت",
         "join_off": "🔴 خاموش کردن عضویت",
         "join_add": "➕ افزودن کانال",
+        "join_remove": "➖ حذف کانال",
         "join_list": "📋 کانال‌ها",
     },
 }
@@ -83,6 +85,10 @@ TEXTS = {
         "join_status": "Status: {status}\nChannels: {count}",
         "on": "ON",
         "off": "OFF",
+        "join_add_prompt": (
+            "Send @channelname, -1001234567890, or "
+            "-1001234567890 https://t.me/+invitecode"
+        ),
         "join_add_help": (
             "Add channels with:\n"
             "/join add @channelname\n"
@@ -90,6 +96,7 @@ TEXTS = {
             "/join add -1001234567890 https://t.me/+invitecode\n\n"
             "The bot must be an administrator in every required channel."
         ),
+        "join_remove_prompt": "Send the numeric channel ID to remove, for example -1001234567890.",
         "join_remove_help": "Remove a channel with /join remove <chat_id>.",
         "join_none": "No required channels are configured.",
         "join_channels": "Required channels:\n{items}",
@@ -157,6 +164,10 @@ TEXTS = {
         "join_status": "وضعیت: {status}\nتعداد کانال‌ها: {count}",
         "on": "روشن",
         "off": "خاموش",
+        "join_add_prompt": (
+            "@channelname یا -1001234567890 یا "
+            "-1001234567890 https://t.me/+invitecode را ارسال کنید."
+        ),
         "join_add_help": (
             "برای افزودن کانال:\n"
             "/join add @channelname\n"
@@ -164,6 +175,7 @@ TEXTS = {
             "/join add -1001234567890 https://t.me/+invitecode\n\n"
             "ربات باید در تمام کانال‌های اجباری ادمین باشد."
         ),
+        "join_remove_prompt": "شناسه عددی کانال را برای حذف ارسال کنید؛ مثال: -1001234567890",
         "join_remove_help": "برای حذف کانال: /join remove <chat_id>",
         "join_none": "هیچ کانالی برای عضویت اجباری تنظیم نشده است.",
         "join_channels": "کانال‌های عضویت اجباری:\n{items}",
