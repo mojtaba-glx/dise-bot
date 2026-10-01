@@ -1,5 +1,6 @@
 """Multi-channel required membership with bilingual admin controls."""
 
+import asyncio
 import logging
 import re
 import time
@@ -48,6 +49,13 @@ BOT_BUTTONS = {
 }
 
 
+ADMIN_BUTTON_LABELS = {
+    label
+    for language in admin_i18n.SUPPORTED_LANGUAGES
+    for label in admin_i18n.BUTTONS[language].values()
+} | set(admin_i18n.LANGUAGE_BUTTONS.values())
+
+
 def join_store(context: ContextTypes.DEFAULT_TYPE) -> ForceJoinStore:
     return context.application.bot_data["force_join_store"]
 
@@ -87,12 +95,7 @@ def is_admin_management_interaction(
     if message is None or user is None or not manager_store(context).is_manager(user.id):
         return False
     text = message.text or ""
-    admin_labels = {
-        label
-        for language in admin_i18n.SUPPORTED_LANGUAGES
-        for label in admin_i18n.BUTTONS[language].values()
-    } | set(admin_i18n.LANGUAGE_BUTTONS.values())
-    if text in admin_labels:
+    if text in ADMIN_BUTTON_LABELS:
         return True
     if not text.startswith("/"):
         return False
@@ -173,13 +176,19 @@ async def verify_all_required(
     *,
     fresh: bool = False,
 ) -> tuple[bool | None, list[RequiredChat]]:
-    missing: list[RequiredChat] = []
-    for chat in chats:
-        verified = await verify_member(context, chat, user_id, fresh=fresh)
-        if verified is None:
-            return None, []
-        if not verified:
-            missing.append(chat)
+    results = await asyncio.gather(
+        *(
+            verify_member(context, chat, user_id, fresh=fresh)
+            for chat in chats
+        )
+    )
+    if any(result is None for result in results):
+        return None, []
+    missing = [
+        chat
+        for chat, verified in zip(chats, results, strict=True)
+        if not verified
+    ]
     return not missing, missing
 
 
@@ -398,18 +407,19 @@ async def enable_required_membership(
         await message.reply_text(admin_i18n.text(language, "join_need_channel"))
         return False
 
-    refreshed: list[RequiredChat] = []
     try:
-        for configured in store.configured_chats:
-            refreshed.append(
-                await prepare_required_chat(
+        refreshed = await asyncio.gather(
+            *(
+                prepare_required_chat(
                     context,
                     configured.chat_id,
                     configured.join_url,
                     language=language,
                     refresh_private=True,
                 )
+                for configured in store.configured_chats
             )
+        )
     except (ValueError, TelegramError) as error:
         logger.warning("Could not enable required membership (%s).", type(error).__name__)
         await message.reply_text(admin_i18n.text(language, "join_verify_error"))
