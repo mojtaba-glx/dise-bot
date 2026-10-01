@@ -271,16 +271,12 @@ async def test_ablity_button_opens_screen_and_back_returns_to_main_menu(bot_app)
     assert api.sent[-1]["text"] == messages.WELCOME
 
 
-async def test_ablity_screen_keeps_group_switches_available(bot_app):
+async def test_ablity_screen_has_no_activation_buttons_in_group(bot_app):
     app, api = bot_app
     await app.process_update(incoming(app, "/on", chat_type="group"))
     await app.process_update(incoming(app, messages.ABLITY_BUTTON, chat_type="group"))
     assert api.sent[-1]["text"] == messages.ABLITY_MENU
-    assert api.sent[-1]["reply_markup"]["keyboard"][-1] == [
-        {"text": messages.ON_BUTTON},
-        {"text": messages.OFF_BUTTON},
-        {"text": messages.STATUS_BUTTON},
-    ]
+    assert api.sent[-1]["reply_markup"]["keyboard"] == [[{"text": messages.BACK_BUTTON}]]
     assert api.sent[-1]["reply_markup"]["selective"] is True
 
 
