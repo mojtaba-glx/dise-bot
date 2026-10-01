@@ -22,6 +22,7 @@ from telegram.ext import (
 from dise_bot import admin_i18n
 from dise_bot.config import ConfigurationError, Settings, load_settings
 from dise_bot.handlers.absolute import absolute_button
+from dise_bot.handlers.admin_router import admin_private_button_router
 from dise_bot.handlers.activation import off_command, on_command
 from dise_bot.handlers.aura import aura_button
 from dise_bot.handlers.commands import (
@@ -45,7 +46,6 @@ from dise_bot.handlers.force_join import (
     check_membership,
     force_join_gate,
     join_command,
-    join_panel_button,
 )
 from dise_bot.handlers.management import (
     admin_command,
@@ -53,7 +53,6 @@ from dise_bot.handlers.management import (
     ban_command,
     ban_gate,
     id_command,
-    panel_button,
     panel_command,
     reply_command,
     unadmin_command,
@@ -151,49 +150,18 @@ def build_application(settings: Settings) -> Application:
     application.add_handler(CommandHandler("reply", reply_command))
     application.add_handler(CommandHandler("join", join_command))
     application.add_handler(CommandHandler("tag", tag_command))
-    panel_keys = {
-        "panel",
-        "ban",
-        "unban",
-        "add_admin",
-        "remove_admin",
-        "auto_replies",
-        "settings",
-        "language",
-        "back",
-    }
-    panel_labels = {
+    admin_labels = {
         label
-        for key in panel_keys
-        for label in admin_i18n.button_labels(key)
+        for language in admin_i18n.SUPPORTED_LANGUAGES
+        for label in admin_i18n.BUTTONS[language].values()
     } | set(admin_i18n.LANGUAGE_BUTTONS.values())
-    panel_pattern = (
-        r"\A(?:" + "|".join(re.escape(label) for label in sorted(panel_labels)) + r")\Z"
-    )
-    application.add_handler(
-        MessageHandler(filters.ChatType.PRIVATE & filters.Regex(panel_pattern), panel_button)
-    )
-
-    force_join_keys = {
-        "force_join",
-        "join_on",
-        "join_off",
-        "join_add",
-        "join_remove",
-        "join_list",
-    }
-    force_join_labels = {
-        label
-        for key in force_join_keys
-        for label in admin_i18n.button_labels(key)
-    }
-    force_join_pattern = (
-        r"\A(?:" + "|".join(re.escape(label) for label in sorted(force_join_labels)) + r")\Z"
+    admin_pattern = (
+        r"\A(?:" + "|".join(re.escape(label) for label in sorted(admin_labels)) + r")\Z"
     )
     application.add_handler(
         MessageHandler(
-            filters.ChatType.PRIVATE & filters.Regex(force_join_pattern),
-            join_panel_button,
+            filters.ChatType.PRIVATE & filters.Regex(admin_pattern),
+            admin_private_button_router,
         )
     )
 
